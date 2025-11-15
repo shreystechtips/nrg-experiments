@@ -43,6 +43,7 @@ print(f"Using {nthreads} CPU threads for detection")
 # 3. FRC-specific parameters
 # --------------------------------------------------------------
 tagsize = 0.1524  # 6 inches in meters
+tagsize = 0.05
 family = "tag36h11"
 field_length = 16.4592  # X
 field_width = 8.2296  # Y
@@ -109,20 +110,21 @@ scale = min(map_w / field_length, map_h / field_width)
 # 8. Timing
 # --------------------------------------------------------------
 prev_time = time.time()
-fps = 0.0
+# fps = 0.0
 
 print("FRC 2025 AprilTag Localization – press 'q' to quit")
 
-while True:
+
+def process_frame(ret, frame, return_process_time=True):
+    # while True:
     t0 = time.time()
 
-    ret, frame = cap.read()
     if not ret or frame is None or frame.size == 0:
-        continue
+        return None, None
 
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     if gray is None:
-        continue
+        return None, None
 
     display = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)  # 3-channel for drawing
 
@@ -169,7 +171,6 @@ while True:
                 ],
                 dtype=np.float32,
             )
-
             # Field corners for this tag
             pose = tag_poses[tag_id]
             t_field_tag = np.array(
@@ -189,16 +190,14 @@ while True:
             )
             # print(q)
             R_field_tag = quat_to_rotmat(q)
-            total_mat = np.vstack(
-                (np.hstack((R_field_tag, t_field_tag[:, np.newaxis])), [0, 0, 0, 1])
-            )
+            # total_mat = np.vstack((np.hstack((R_field_tag,)), [0, 0, 0, 1]))
 
             for local_pt in local_corners:
                 # print(total_mat, np.hstack((local_pt, [1,1,1,1])))
-                field_pt = total_mat @ np.hstack((local_pt, [1]))
+                field_pt = R_field_tag @ (local_pt) + t_field_tag
                 # field_pt = R_field_tag @ local_pt + t_field_tag
                 # + t_field_tag
-                obj_field.append(field_pt[:3])
+                obj_field.append(field_pt)
             #   print(field_pt)
 
             # Image corners (assume order matches: adjust if needed)
@@ -236,7 +235,7 @@ while True:
     num_tags = len(known_tag_ids)
     robot_pos = None
     robot_yaw = None
-
+    has_data = False
     if num_tags > 0 and len(obj_field) == 4 * num_tags:
         obj_field = np.array(obj_field, dtype=np.float32)
         img_corners = np.array(img_corners, dtype=np.float32).reshape(-1, 1, 2)
@@ -256,19 +255,22 @@ while True:
             # Robot pose in field
             robot_pos = T_field_robot[:3, 3]
             R_rf = T_field_robot[:3, :3]
-            robot_yaw = np.arctan2(R_rf[1, 0], R_rf[0, 0])
+            rot = Rotation.from_matrix(R_rf)
+            robot_yaw, pitch, roll = rot.as_euler("ZYX", degrees=False)
+            # robot_yaw = np.arctan2(R_rf[1, 0], R_rf[0, 0])
+            has_data = True
 
             # Backside/height check and flip if needed
-            if robot_pos[2] < 0.1:  # Assuming camera above field
-                print(f"Flipping pose (low Z: {robot_pos[2]:.2f})")
-                flip_R = np.array(
-                    [[1, 0, 0], [0, -1, 0], [0, 0, -1]]
-                )  # 180 deg around X
-                T_field_robot[:3, :3] = R_rf @ flip_R
-                T_field_robot[:3, 3] = -robot_pos  # Flip position
-                robot_pos = T_field_robot[:3, 3]
-                R_rf = T_field_robot[:3, :3]
-                robot_yaw = np.arctan2(R_rf[1, 0], R_rf[0, 0])
+            # if robot_pos[2] < 0.1:  # Assuming camera above field
+            #     print(f"Flipping pose (low Z: {robot_pos[2]:.2f})")
+            #     flip_R = np.array(
+            #         [[1, 0, 0], [0, -1, 0], [0, 0, -1]]
+            #     )  # 180 deg around X
+            #     T_field_robot[:3, :3] = R_rf @ flip_R
+            #     T_field_robot[:3, 3] = -robot_pos  # Flip position
+            #     robot_pos = T_field_robot[:3, 3]
+            #     R_rf = T_field_robot[:3, :3]
+            #     robot_yaw = np.arctan2(R_rf[1, 0], R_rf[0, 0])
 
     # --------------------------------------------------------------
     # 11. Stats
@@ -277,7 +279,7 @@ while True:
     latency_ms = (t1 - t0) * 1000.0
 
     now = time.time()
-    fps = 0.9 * fps + 0.1 / (t1 - t0)
+    # fps = 0.9 * fps + 0.1 / (t1 - t0)
     prev_time = now
 
     # --------------------------------------------------------------
@@ -327,22 +329,22 @@ while True:
         dy = arrow_len * np.sin(robot_yaw)
         cv2.arrowedLine(map_img, (px, py), (int(px + dx), int(py + dy)), (255, 0, 0), 1)
         print(
-            f"Robot Pose (from {num_tags} tags): [{robot_pos[0]:.2f}, {robot_pos[1]:.2f}, {robot_pos[2]:.2f}] m, Yaw {np.rad2deg(robot_yaw):.1f}°"
+            f"Robot Pose (from {num_tags} tags): [{robot_pos[0]:.2f}, {robot_pos[1]:.2f}, {robot_pos[2]:.2f}] m, Yaw {(np.rad2deg(robot_yaw)):.1f}°, {np.rad2deg(pitch):.1f}°, {np.rad2deg(roll):.1f}°"
         )
     # Overlay small map in top-right of display
     small_map = cv2.resize(map_img, (map_w, map_h))
     h, w = display.shape[:2]
     display[0:map_h, w - map_w : w] = small_map
 
-    cv2.putText(
-        display,
-        f"FPS: {fps:.1f}",
-        (10, 30),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        1.0,
-        (255, 255, 255),
-        2,
-    )
+    # cv2.putText(
+    #     display,
+    #     f"FPS: {fps:.1f}",
+    #     (10, 30),
+    #     cv2.FONT_HERSHEY_SIMPLEX,
+    #     1.0,
+    #     (255, 255, 255),
+    #     2,
+    # )
     cv2.putText(
         display,
         f"Latency: {latency_ms:.1f} ms",
@@ -363,7 +365,15 @@ while True:
     )
 
     cv2.imshow("AprilTag – Grayscale (FRC Localization)", display)
+    if has_data:
+        return T_field_robot, latency_ms
+    else:
+        return None, None
 
+
+while True:
+    ret, frame = cap.read()
+    process_frame(ret, frame)
     if cv2.waitKey(1) & 0xFF == ord("q"):
         break
 
