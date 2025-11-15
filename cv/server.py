@@ -4,13 +4,22 @@ import json
 import logging
 import threading
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, Optional
 
 import cv2
 from aiohttp import WSMsgType, web
 from networktables import NetworkTables
+from photonlibpy.generated.PhotonPipelineResultSerde import PhotonPipelineResultSerde
+from photonlibpy.targeting.multiTargetPNPResult import MultiTargetPNPResult, PnpResult
+from photonlibpy.targeting.photonPipelineResult import (
+    PhotonPipelineMetadata,
+    PhotonPipelineResult,
+)
+from photonlibpy.targeting.photonTrackedTarget import PhotonTrackedTarget
 from scipy.spatial.transform import Rotation
+from wpimath.geometry import Transform2d, Transform3d
 
 from calibration import compute_calibration, init_calib_board
 from camera import apply_camera_settings, discover_cameras, open_selected_camera
@@ -110,12 +119,19 @@ def video_loop():
             time.sleep(0.1)
             continue
         ret, frame = camera_state.current_cap.read()
+        capture_timestamp = datetime.now().microsecond
         if not ret:
             continue
         camera_state.current_frame_raw = frame.copy()
+        camera_state.sequence_id += 1
         if not app_config.global_data.driver_mode:
             process_frame(
-                frame, app_config, detector_state, camera_state, field_tag_poses
+                frame,
+                app_config,
+                detector_state,
+                camera_state,
+                field_tag_poses,
+                capture_timestamp,
             )
         time.sleep(0.001)
 
@@ -218,7 +234,7 @@ async def ws_handler(request):
 
             elif t == "config":
                 app_config.camera_settings = app_config.camera_settings.model_copy(
-                    update=data.get("camera_settinfs", {})
+                    update=data.get("camera_settings", {})
                 )
                 apply_camera_settings(app_config, camera_state)
 
@@ -292,26 +308,44 @@ async def broadcast(msg):
         )
 
 
-# --------------------------------------------------------------
-# NT Publisher Loop
-# --------------------------------------------------------------
+## TODO: think about how this can be made async
 async def nt_loop():
     while True:
-        if camera_state.last_pose is not None:
-            print(camera_state.last_pose)
-            pos = camera_state.last_pose[:3, 3]
-            rot = Rotation.from_matrix(camera_state.last_pose[:3, :3]).as_euler(
-                "xyz", degrees=True
+        pose = camera_state.last_pose
+
+        if pose is not None:
+            pnp_result = PnpResult(best=Transform3d.fromMatrix(pose))
+            multi_result = MultiTargetPNPResult(
+                estimatedPose=pnp_result, fiducialIDsUsed=camera_state.last_ids
             )
-            camera_table.putNumberArray(
-                "robotPoseField", [pos[0], pos[1], pos[2], rot[0], rot[1], rot[2]]
-            )
-            camera_table.putNumber("robotYawField", rot[2])
-            camera_state.last_pose = None
+            print("got multi result")
         else:
-            camera_table.putNumberArray("robotPoseField", [0] * 6)
-        camera_table.putNumber("latency", camera_state.last_latency)
-        await asyncio.sleep(0.05)
+            multi_result = None
+        metadata = PhotonPipelineMetadata(
+            captureTimestampMicros=camera_state.last_capture_time,
+            publishTimestampMicros=datetime.now().microsecond,
+            sequenceID=camera_state.sequence_id,
+        )
+        data = PhotonPipelineResult(metadata=metadata, multitagResult=multi_result)
+        serde = PhotonPipelineResultSerde.pack(data)
+        # return test, serde
+        # data, serde = await generate_pose_serdes_entry(pose)
+        if pose is not None:
+            print(data, serde, data.getLatencyMillis())
+        # if pose is not None:
+        #     # print(camera_state.last_pose)
+        #     pos = pose[:3, 3]
+        #     rot = Rotation.from_matrix(pose[:3, :3]).as_euler("xyz", degrees=True)
+        #     camera_table.putNumberArray(
+        #         "robotPoseField", [pos[0], pos[1], pos[2], rot[0], rot[1], rot[2]]
+        #     )
+        #     camera_table.putNumber("robotYawField", rot[2])
+        #     camera_state.last_pose = None
+        #     print(data)
+        # else:
+        #     camera_table.putNumberArray("robotPoseField", [0] * 6)
+        # camera_table.putNumber("latency", camera_state.last_latency)
+        await asyncio.sleep(0.001)
 
 
 # --------------------------------------------------------------

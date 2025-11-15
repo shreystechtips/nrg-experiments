@@ -104,6 +104,9 @@ class VisionSegment(BaseModel):
     current_frame_processed: np.ndarray | None = None
     last_pose: np.ndarray | None = None
     last_latency: float = 0.0
+    last_ids: list[int] = Field(default_factory=list)
+    last_capture_time: int = -1
+    sequence_id: int = 0
 
     @computed_field
     def fps(self) -> float:
