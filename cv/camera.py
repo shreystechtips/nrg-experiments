@@ -1,11 +1,11 @@
-import logging
-
 import cv2
+from aiologger import Logger
+from aiologger.levels import LogLevel
 from cv2_enumerate_cameras import enumerate_cameras
 
 from model import CameraData, UISettings, VisionSegment
 
-log = logging.getLogger("photonvision_camera")
+log = Logger.with_default_handlers(name="photonvision_camera", level=LogLevel.INFO)
 
 
 def discover_cameras(camera_state: VisionSegment):

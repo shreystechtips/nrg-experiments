@@ -8,8 +8,8 @@
     "auto_exposure": false,
     "auto_white_balance": true,
     "led_mode": 1,
-    "res_x": 1920,
-    "res_y": 1080
+    "res_x": 1270,
+    "res_y": 720
   },
   "pipeline": {
     "family": "tag36h11",
@@ -34,7 +34,8 @@
     "team_number": 948,
     "nt_server_addr": "10.9.48.0",
     "led_brightness": 0,
-    "driver_mode": false
+    "driver_mode": false,
+    "camera_name": "tmp"
   },
   "calib_config": {
     "board_type": "Charuco",

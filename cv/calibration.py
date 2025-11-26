@@ -1,11 +1,11 @@
-import logging
-
 import cv2
 import numpy as np
+from aiologger import Logger
+from aiologger.levels import LogLevel
 
 from model import CalibrationData
 
-log = logging.getLogger("photonvision_calibration")
+log = Logger.with_default_handlers(name="photonvision_calibration", level=LogLevel.INFO)
 
 
 def init_calib_board(app_config):

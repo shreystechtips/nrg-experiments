@@ -2,6 +2,8 @@ import threading
 
 import cv2
 import numpy as np
+from ntcore import NetworkTable, NetworkTableInstance
+from photonlibpy.networktables.NTTopicSet import NTTopicSet
 from pupil_apriltags import Detector
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
@@ -52,6 +54,7 @@ class GlobalSettings(BaseModel):
     nt_server_addr: str = Field(default="10.9.48.0")
     led_brightness: int = Field(default=0, ge=0, le=1)
     driver_mode: bool = Field(default=False)
+    camera_name: str = Field(default="change_me")
 
 
 class CalibrationCaptures(BaseModel):
@@ -116,3 +119,27 @@ class VisionSegment(BaseModel):
 class DetectorState(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
     detector: Detector | None = None
+
+
+class NetworkState(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    _root_table: NetworkTable
+    _cam_table: NetworkTable
+    nt_wrapper: NTTopicSet
+    nt_instance: NetworkTableInstance
+
+    @classmethod
+    def quick_create(
+        cls, camera_name: str, table_name: str = "photonvision"
+    ) -> "NetworkState":
+        nt_instance = NetworkTableInstance.getDefault()
+        root_table = nt_instance.getTable(key=table_name)
+        cam_table = root_table.getSubTable(camera_name)
+        nt_wrapper = NTTopicSet(cam_table)
+        nt_wrapper.updateEntries()
+        return cls(
+            _root_table=root_table,
+            _cam_table=cam_table,
+            nt_instance=nt_instance,
+            nt_wrapper=nt_wrapper,
+        )

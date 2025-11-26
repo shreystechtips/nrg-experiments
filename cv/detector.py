@@ -1,12 +1,20 @@
+import logging
 import time
-from datetime import datetime
 
 import cv2
 import numpy as np
+from aiologger import Logger
+from aiologger.levels import LogLevel
 from pupil_apriltags import Detector
 from scipy.spatial.transform import Rotation
 
 from model import DetectorState, PipelineSettings, UISettings, VisionSegment
+
+async_log = Logger.with_default_handlers(
+    name="photonvision_detector", level=LogLevel.INFO
+)
+logging.basicConfig(level=logging.INFO)
+log = logging.getLogger("photonvision_detector")
 
 
 def init_detector(p: PipelineSettings) -> Detector:

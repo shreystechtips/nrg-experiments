@@ -4,50 +4,40 @@ import json
 import logging
 import threading
 import time
-from datetime import datetime
 from pathlib import Path
 from typing import Dict, Optional
 
 import cv2
+import wpilib
 from aiohttp import WSMsgType, web
+from aiologger import Logger
+from aiologger.levels import LogLevel
 from networktables import NetworkTables
-from photonlibpy.generated.PhotonPipelineResultSerde import PhotonPipelineResultSerde
-from photonlibpy.targeting.multiTargetPNPResult import MultiTargetPNPResult, PnpResult
-from photonlibpy.targeting.photonPipelineResult import (
-    PhotonPipelineMetadata,
-    PhotonPipelineResult,
-)
-from photonlibpy.targeting.photonTrackedTarget import PhotonTrackedTarget
-from scipy.spatial.transform import Rotation
-from wpimath.geometry import Transform2d, Transform3d
+from ntcore import NetworkTableInstance
 
 from calibration import compute_calibration, init_calib_board
 from camera import apply_camera_settings, discover_cameras, open_selected_camera
 from detector import init_detector, process_frame
 from model import (
     DetectorState,
+    NetworkState,
     UISettings,
     VisionSegment,
 )
+from network import nt_loop
 
-# --------------------------------------------------------------
-# Logging
-# --------------------------------------------------------------
+async_log = Logger.with_default_handlers(name="photonvision", level=LogLevel.INFO)
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("photonvision")
 
-# --------------------------------------------------------------
-# Persistence
-# --------------------------------------------------------------
 CONFIG_PATH = Path("photonvision_config.json")
 _save_lock = threading.Lock()
 _save_timer: Optional[threading.Timer] = None
 
-
 app_config = UISettings()
 camera_state = VisionSegment()
-nt = NetworkTables
-camera_table = nt.getTable("/photonvision/default")
+nt_state = NetworkState.quick_create(camera_name=app_config.global_data.camera_name)
+ws_clients = set()
 
 
 def _debounced_save():
@@ -66,21 +56,23 @@ def _do_save():
     tmp.replace(CONFIG_PATH)
     log.info("Config saved")
     # except Exception as e:
-    #     log.error(f"Save failed: {e}")
+    #     async_log.error(f"Save failed: {e}")
 
 
 def load_config():
     global app_config
+    global nt_state
     if not CONFIG_PATH.exists():
-        log.info("No config – using defaults")
+        async_log.info("No config – using defaults")
         return
     try:
         with CONFIG_PATH.open() as f:
-            # data = json.load(f)
-            # print(data)
             app_config = UISettings.model_validate_json(f.read())
         init_calib_board(app_config)
-        log.info("Config loaded")
+        nt_state = NetworkState.quick_create(
+            camera_name=app_config.global_data.camera_name
+        )
+        log.info("Config loaded, networktable link recreated")
     except Exception as e:
         log.error(f"Config load failed: {e}")
 
@@ -105,9 +97,9 @@ def load_field_layout():
         with open("2025-reefscape-welded.json", "r") as f:
             data = json.load(f)
         field_tag_poses = {t["ID"]: t["pose"] for t in data.get("tags", [])}
-        log.info(f"Loaded {len(field_tag_poses)} tags")
+        async_log.info(f"Loaded {len(field_tag_poses)} tags")
     except Exception as e:
-        log.warning(f"Field layout failed: {e}")
+        async_log.warning(f"Field layout failed: {e}")
 
 
 # --------------------------------------------------------------
@@ -117,29 +109,29 @@ def video_loop():
     while True:
         if not camera_state.current_cap or not camera_state.current_cap.isOpened():
             time.sleep(0.1)
+            async_log.warning(
+                f"Could not acquire lock on selected camera {app_config.selected_camera}. Sleeping and re-trying."
+            )
             continue
         ret, frame = camera_state.current_cap.read()
-        capture_timestamp = datetime.now().microsecond
+        capture_timestamp = int(wpilib.Timer.getFPGATimestamp() * 1e6)
         if not ret:
             continue
-        camera_state.current_frame_raw = frame.copy()
+        ## TODO: Figure out if this is okay. I think cvtColor makes a copy so this prevents a double copy.
+        camera_state.current_frame_raw = frame
         camera_state.sequence_id += 1
-        if not app_config.global_data.driver_mode:
-            process_frame(
-                frame,
-                app_config,
-                detector_state,
-                camera_state,
-                field_tag_poses,
-                capture_timestamp,
-            )
-        time.sleep(0.001)
+        process_frame(
+            frame,
+            app_config,
+            detector_state,
+            camera_state,
+            field_tag_poses,
+            capture_timestamp,
+            draw_ui_elements=not app_config.global_data.driver_mode,
+        )
 
 
-# --------------------------------------------------------------
-# HTTP Server (MJPEG + static)
-# --------------------------------------------------------------
-async def mjpeg_handler(request):
+async def mjpeg_handler(request: web.Request):
     """
     Streams processed (or raw) video as multipart/x-mixed-replace.
     """
@@ -186,12 +178,6 @@ async def mjpeg_handler(request):
             break  # client went away
 
         await asyncio.sleep(1 / 30)  # ~30 FPS cap
-
-
-# --------------------------------------------------------------
-# WebSocket API
-# --------------------------------------------------------------
-ws_clients = set()
 
 
 def make_config():
@@ -277,13 +263,16 @@ async def ws_handler(request):
                 await ws.send_json({"type": "calib_status", "count": 0})
 
             elif t == "nt_server":
-                # global nt_server_addr
-                app_config.global_data.nt_server_addr = data.get("address", "")
-                nt.shutdown()
+                if ip := data.get("address"):
+                    app_config.global_data.nt_server_addr = ip
+                    NetworkTables.shutdown()
+                    NetworkTableInstance.destroy(nt_state.nt_instance)
                 if app_config.global_data.nt_server_addr:
-                    nt.initialize(server=app_config.global_data.nt_server_addr)
+                    NetworkTables.initialize(
+                        server=app_config.global_data.nt_server_addr
+                    )
                 else:
-                    nt.initialize()
+                    NetworkTables.initialize()
 
             elif t == "global":
                 app_config.global_data = app_config.global_data.model_copy(
@@ -308,52 +297,7 @@ async def broadcast(msg):
         )
 
 
-## TODO: think about how this can be made async
-async def nt_loop():
-    while True:
-        pose = camera_state.last_pose
-
-        if pose is not None:
-            pnp_result = PnpResult(best=Transform3d.fromMatrix(pose))
-            multi_result = MultiTargetPNPResult(
-                estimatedPose=pnp_result, fiducialIDsUsed=camera_state.last_ids
-            )
-            print("got multi result")
-        else:
-            multi_result = None
-        metadata = PhotonPipelineMetadata(
-            captureTimestampMicros=camera_state.last_capture_time,
-            publishTimestampMicros=datetime.now().microsecond,
-            sequenceID=camera_state.sequence_id,
-        )
-        data = PhotonPipelineResult(metadata=metadata, multitagResult=multi_result)
-        serde = PhotonPipelineResultSerde.pack(data)
-        # return test, serde
-        # data, serde = await generate_pose_serdes_entry(pose)
-        if pose is not None:
-            print(data, serde, data.getLatencyMillis())
-        # if pose is not None:
-        #     # print(camera_state.last_pose)
-        #     pos = pose[:3, 3]
-        #     rot = Rotation.from_matrix(pose[:3, :3]).as_euler("xyz", degrees=True)
-        #     camera_table.putNumberArray(
-        #         "robotPoseField", [pos[0], pos[1], pos[2], rot[0], rot[1], rot[2]]
-        #     )
-        #     camera_table.putNumber("robotYawField", rot[2])
-        #     camera_state.last_pose = None
-        #     print(data)
-        # else:
-        #     camera_table.putNumberArray("robotPoseField", [0] * 6)
-        # camera_table.putNumber("latency", camera_state.last_latency)
-        await asyncio.sleep(0.001)
-
-
-# --------------------------------------------------------------
-# Main
-# --------------------------------------------------------------
 async def main():
-    # global driver_mode
-    global detector, field_tag_poses
     load_config()
     discover_cameras(camera_state)
     open_selected_camera(app_config, camera_state)
@@ -363,9 +307,9 @@ async def main():
     init_calib_board(app_config)
 
     if app_config.global_data.nt_server_addr:
-        nt.initialize(server=str(app_config.global_data.nt_server_addr))
+        NetworkTables.initialize(server=str(app_config.global_data.nt_server_addr))
     else:
-        nt.initialize()
+        NetworkTables.initialize()
 
     threading.Thread(target=video_loop, daemon=True).start()
 
@@ -378,9 +322,9 @@ async def main():
     await runner.setup()
     site = web.TCPSite(runner, "0.0.0.0", 8080)
     await site.start()
-    log.info("Server running on http://<ip>:8080")
+    async_log.info("Server running on http://<ip>:8080")
 
-    await nt_loop()
+    await nt_loop(camera_state, nt_state)
 
 
 if __name__ == "__main__":

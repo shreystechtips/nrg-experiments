@@ -448,10 +448,7 @@
                     els.cam.value = cfg.selected_camera;
                 }
 
-                document.getElementById("video").src = cfg.global_data
-                    ?.driver_mode
-                    ? "/raw"
-                    : "/stream";
+                document.getElementById("video").src = "/stream";
             }
 
             // --------------------------------------------------------------
@@ -573,9 +570,7 @@
                         global: { driver_mode: els.driver_mode.checked },
                     }),
                 );
-                document.getElementById("video").src = els.driver_mode.checked
-                    ? "/raw"
-                    : "/stream";
+                document.getElementById("video").src = "/stream";
             };
 
             document.getElementById("capture_frame").onclick = () =>
