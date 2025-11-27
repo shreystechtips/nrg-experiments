@@ -109,7 +109,7 @@ def video_loop():
     while True:
         if not camera_state.current_cap or not camera_state.current_cap.isOpened():
             time.sleep(0.1)
-            async_log.warning(
+            log.warning(
                 f"Could not acquire lock on selected camera {app_config.selected_camera}. Sleeping and re-trying."
             )
             continue
