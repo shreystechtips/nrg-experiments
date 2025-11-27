@@ -108,10 +108,10 @@ def load_field_layout():
 def video_loop():
     while True:
         if not camera_state.current_cap or not camera_state.current_cap.isOpened():
-            time.sleep(0.1)
             log.warning(
                 f"Could not acquire lock on selected camera {app_config.selected_camera}. Sleeping and re-trying."
             )
+            time.sleep(5)
             continue
         ret, frame = camera_state.current_cap.read()
         capture_timestamp = int(wpilib.Timer.getFPGATimestamp() * 1e6)
