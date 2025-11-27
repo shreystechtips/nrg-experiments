@@ -198,7 +198,7 @@ def process_frame(
 
     # Stats
     latency = (time.time() - t0) * 1000
-    if draw_ui_elements:
+    if True:
         cv2.putText(
             display,
             f"Latency: {latency:.1f}ms",
