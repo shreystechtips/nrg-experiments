@@ -111,24 +111,30 @@ def video_loop():
             log.warning(
                 f"Could not acquire lock on selected camera {app_config.selected_camera}. Sleeping and re-trying."
             )
-            time.sleep(5)
+            time.sleep(0.25)
             continue
-        ret, frame = camera_state.current_cap.read()
+        with camera_state.camera_lock:
+            ret, frame = camera_state.current_cap.read()
         capture_timestamp = int(wpilib.Timer.getFPGATimestamp() * 1e6)
         if not ret:
             continue
-        ## TODO: Figure out if this is okay. I think cvtColor makes a copy so this prevents a double copy.
-        camera_state.current_frame_raw = frame
-        camera_state.sequence_id += 1
-        process_frame(
-            frame,
-            app_config,
-            detector_state,
-            camera_state,
-            field_tag_poses,
-            capture_timestamp,
-            draw_ui_elements=not app_config.global_data.driver_mode,
-        )
+        try:
+            process_frame(
+                frame,
+                app_config,
+                detector_state,
+                camera_state,
+                field_tag_poses,
+                capture_timestamp,
+                draw_ui_elements=not app_config.global_data.driver_mode,
+            )
+        except Exception as e:
+            log.error(e)
+            # Reset the last pose so that Robot code knows that we have stale data.
+            camera_state.last_pose = None
+        finally:
+            camera_state.current_frame_raw = frame
+            camera_state.sequence_id += 1
 
 
 async def mjpeg_handler(request: web.Request):
@@ -197,6 +203,7 @@ async def ws_handler(request):
             t = data.get("type")
 
             if t == "get_cameras":
+                discover_cameras(camera_state)
                 await ws.send_json(
                     {
                         "type": "cameras",
