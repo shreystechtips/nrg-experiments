@@ -39,9 +39,7 @@ def open_selected_camera(app_config: UISettings, camera_state: VisionSegment):
             log.info("Releasing camera stream")
             camera_state.current_cap.release()
         try:
-            log.info("open")
             cap = cv2.VideoCapture(app_config.selected_camera)
-            log.info("opened")
             if cap.isOpened():
                 camera_state.current_cap = cap
                 log.info(f"Opened camera {app_config.selected_camera}")
