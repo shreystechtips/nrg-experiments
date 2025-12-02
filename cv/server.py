@@ -295,6 +295,7 @@ async def ws_handler(request):
                 app_config.global_data = app_config.global_data.model_copy(
                     update=data.get("global", {})
                 )
+            _debounced_save()
 
     finally:
         _debounced_save()
