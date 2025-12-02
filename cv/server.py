@@ -111,12 +111,22 @@ def video_loop():
             log.warning(
                 f"Could not acquire lock on selected camera {app_config.selected_camera}. Sleeping and re-trying."
             )
+            if not camera_state.camera_lock.locked():
+                log.info(
+                    "Trying to open camera again since we are unable to acquire a lock and are not actively trying to connect/pull from the camera."
+                )
+                open_selected_camera(app_config, camera_state)
             time.sleep(0.25)
             continue
         with camera_state.camera_lock:
             ret, frame = camera_state.current_cap.read()
         capture_timestamp = int(wpilib.Timer.getFPGATimestamp() * 1e6)
         if not ret:
+            if not camera_state.camera_lock.locked():
+                log.info(
+                    "Trying to open camera again since we have received a blank frame."
+                )
+                open_selected_camera(app_config, camera_state)
             continue
         try:
             process_frame(
