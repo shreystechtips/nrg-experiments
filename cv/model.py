@@ -1,4 +1,5 @@
 import threading
+import time
 
 import cv2
 import numpy as np
@@ -123,23 +124,34 @@ class DetectorState(BaseModel):
 
 class NetworkState(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    _root_table: NetworkTable
-    _cam_table: NetworkTable
+    root_table: NetworkTable
+    cam_table: NetworkTable
     nt_wrapper: NTTopicSet
     nt_instance: NetworkTableInstance
 
     @classmethod
     def quick_create(
-        cls, camera_name: str, table_name: str = "photonvision"
+        cls,
+        camera_name: str,
+        team_number: int,
+        table_name: str = "photonvision",
     ) -> "NetworkState":
         nt_instance = NetworkTableInstance.getDefault()
-        root_table = nt_instance.getTable(key=table_name)
+        nt_instance.startClient3("photonvision")
+        nt_instance.setServerTeam(team_number)
+        # For local testing
+        # nt_instance.setServer("localhost", NetworkTableInstance.kDefaultPort3)
+        # print("Waiting for connection...")
+        # while not nt_instance.isConnected():
+        #     time.sleep(0.1)
+        # print("Connected!")
+        root_table = nt_instance.getTable(table_name)
         cam_table = root_table.getSubTable(camera_name)
         nt_wrapper = NTTopicSet(cam_table)
         nt_wrapper.updateEntries()
         return cls(
-            _root_table=root_table,
-            _cam_table=cam_table,
+            root_table=root_table,
+            cam_table=cam_table,
             nt_instance=nt_instance,
             nt_wrapper=nt_wrapper,
         )

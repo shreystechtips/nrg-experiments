@@ -3,7 +3,6 @@ import asyncio
 import wpilib
 from aiologger import Logger
 from aiologger.levels import LogLevel
-from photonlibpy.generated.PhotonPipelineResultSerde import PhotonPipelineResultSerde
 from photonlibpy.targeting.multiTargetPNPResult import MultiTargetPNPResult, PnpResult
 from photonlibpy.targeting.photonPipelineResult import (
     PhotonPipelineMetadata,
@@ -42,9 +41,6 @@ async def nt_loop(camera_state: VisionSegment, nt_state: NetworkState):
             sequenceID=camera_state.sequence_id,
         )
         result = PhotonPipelineResult(metadata=metadata, multitagResult=multi_result)
-        # serde = PhotonPipelineResultSerde.pack(result)
-
-        # print(receive_timestamp_us)
         nt_state.nt_wrapper.latencyMillisEntry.set(
             result.getLatencyMillis(), receive_timestamp_us
         )
@@ -84,8 +80,6 @@ async def nt_loop(camera_state: VisionSegment, nt_state: NetworkState):
         nt_state.nt_wrapper.heartbeatPublisher.set(
             metadata.sequenceID, receive_timestamp_us
         )
-        nt_state.nt_wrapper.updateEntries()
 
         nt_state.nt_wrapper.subTable.getInstance().flush()
-        # log.info(result.getLatencyMillis())
         await asyncio.sleep(0.01)

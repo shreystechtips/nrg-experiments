@@ -12,18 +12,11 @@ import wpilib
 from aiohttp import WSMsgType, web
 from aiologger import Logger
 from aiologger.levels import LogLevel
-from networktables import NetworkTables
-from ntcore import NetworkTableInstance
 
 from calibration import compute_calibration, init_calib_board
 from camera import apply_camera_settings, discover_cameras, open_selected_camera
 from detector import init_detector, process_frame
-from model import (
-    DetectorState,
-    NetworkState,
-    UISettings,
-    VisionSegment,
-)
+from model import DetectorState, NetworkState, UISettings, VisionSegment
 from network import nt_loop
 
 async_log = Logger.with_default_handlers(name="photonvision", level=LogLevel.INFO)
@@ -36,7 +29,10 @@ _save_timer: Optional[threading.Timer] = None
 
 app_config = UISettings()
 camera_state = VisionSegment()
-nt_state = NetworkState.quick_create(camera_name=app_config.global_data.camera_name)
+nt_state = NetworkState.quick_create(
+    camera_name=app_config.global_data.camera_name,
+    team_number=app_config.global_data.team_number,
+)
 ws_clients = set()
 
 
@@ -70,7 +66,8 @@ def load_config():
             app_config = UISettings.model_validate_json(f.read())
         init_calib_board(app_config)
         nt_state = NetworkState.quick_create(
-            camera_name=app_config.global_data.camera_name
+            camera_name=app_config.global_data.camera_name,
+            team_number=app_config.global_data.team_number,
         )
         log.info("Config loaded, networktable link recreated")
     except Exception as e:
@@ -280,16 +277,10 @@ async def ws_handler(request):
                 await ws.send_json({"type": "calib_status", "count": 0})
 
             elif t == "nt_server":
+                # TODO: Handle this
                 if ip := data.get("address"):
                     app_config.global_data.nt_server_addr = ip
-                    NetworkTables.shutdown()
-                    NetworkTableInstance.destroy(nt_state.nt_instance)
-                if app_config.global_data.nt_server_addr:
-                    NetworkTables.initialize(
-                        server=app_config.global_data.nt_server_addr
-                    )
-                else:
-                    NetworkTables.initialize()
+                nt_state.nt_instance.setServerTeam(app_config.global_data.team_number)
 
             elif t == "global":
                 app_config.global_data = app_config.global_data.model_copy(
@@ -323,11 +314,6 @@ async def main():
     load_field_layout()
     detector_state.detector = init_detector(app_config.pipeline)
     init_calib_board(app_config)
-
-    if app_config.global_data.nt_server_addr:
-        NetworkTables.initialize(server=str(app_config.global_data.nt_server_addr))
-    else:
-        NetworkTables.initialize()
 
     threading.Thread(target=video_loop, daemon=True).start()
 
