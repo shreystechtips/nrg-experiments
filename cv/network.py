@@ -22,8 +22,9 @@ async def nt_loop(camera_state: VisionSegment, nt_state: NetworkState):
         # Handle the case where the we have a negative processing time.
         if receive_timestamp_us < camera_state.last_capture_time:
             # log.info("um")
-            await asyncio.sleep(0.001)
-            continue
+            # await asyncio.sleep(0.001)
+            return
+            # continue
         pose = camera_state.last_pose
 
         if pose is not None:
@@ -82,4 +83,4 @@ async def nt_loop(camera_state: VisionSegment, nt_state: NetworkState):
         )
 
         nt_state.nt_wrapper.subTable.getInstance().flush()
-        await asyncio.sleep(0.01)
+        await asyncio.sleep(0.0000000000000001)
