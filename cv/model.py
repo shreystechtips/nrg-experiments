@@ -210,9 +210,9 @@ class NetworkState(BaseModel):
     ) -> "NetworkState":
         nt_instance = NetworkTableInstance.getDefault()
         nt_instance.startClient4("photonvision")
-        # nt_instance.setServerTeam(team_number)
+        nt_instance.setServerTeam(team_number)
         # For local testing
-        nt_instance.setServer("localhost", NetworkTableInstance.kDefaultPort4)
+        # nt_instance.setServer("localhost", NetworkTableInstance.kDefaultPort4)
         # print("Waiting for connection...")
         # while not nt_instance.isConnected():
         #     time.sleep(0.1)
