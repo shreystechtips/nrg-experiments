@@ -1,0 +1,75 @@
+{
+  "selected_camera": 1200,
+  "camera_settings": {
+    "exposure": 12000,
+    "gain": 12,
+    "brightness": 50,
+    "white_balance": 4600,
+    "auto_exposure": true,
+    "auto_white_balance": true,
+    "led_mode": 1,
+    "res_x": 1280,
+    "res_y": 720
+  },
+  "pipeline": {
+    "family": "tag36h11",
+    "nthreads": 4,
+    "quad_decimate": 2.0,
+    "quad_sigma": 0.0,
+    "refine_edges": 1,
+    "decode_sharpening": 0.25
+  },
+  "calibration": {
+    "1200": {
+      "1280x720": {
+        "cameraMatrix": [
+          [
+            4103.7023043872605,
+            0.0,
+            357.22256514228246
+          ],
+          [
+            0.0,
+            7510.645277675806,
+            625.4190493370182
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "distCoeffs": [
+          [
+            4.317649636684271,
+            -216.08422658861397,
+            0.1062025361380221,
+            -0.3978617180377336,
+            6874.670913479415
+          ]
+        ]
+      }
+    }
+  },
+  "robot_offset": {
+    "tx": 0.0,
+    "ty": 0.0,
+    "tz": 0.0,
+    "yaw": 0.0
+  },
+  "global_data": {
+    "tag_size_m": 0.05,
+    "team_number": 948,
+    "led_brightness": 0,
+    "driver_mode": false,
+    "camera_name": "FrontLeftCamera"
+  },
+  "calib_config": {
+    "board_type": "Charuco",
+    "tag_family": "DICT_4X4_1000",
+    "sq_len": 0.03,
+    "marker_len": 0.015,
+    "board_width_sq": 5,
+    "board_height_sq": 7
+  }
+}
