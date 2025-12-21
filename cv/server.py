@@ -117,7 +117,7 @@ def video_loop():
             continue
         with camera_state.camera_lock:
             ret, frame = camera_state.current_cap.read()
-        capture_timestamp = int(wpilib.Timer.getFPGATimestamp() * 1e6)
+            capture_timestamp = int(wpilib.Timer.getFPGATimestamp() * 1e6)
         if not ret:
             if not camera_state.camera_lock.locked():
                 log.info(
@@ -329,6 +329,8 @@ async def main():
     async_log.info("Server running on http://<ip>:8080")
 
     await nt_loop(camera_state, nt_state)
+    # threading.Thread(target=video_loop, daemon=True).start()
+    # await video_loop()
 
 
 if __name__ == "__main__":

@@ -8,6 +8,7 @@ from photonlibpy.targeting.photonPipelineResult import (
     PhotonPipelineMetadata,
     PhotonPipelineResult,
 )
+from photonlibpy.targeting.photonTrackedTarget import PhotonTrackedTarget
 from wpimath.geometry import Transform3d
 
 from model import NetworkState, VisionSegment
@@ -21,11 +22,9 @@ async def nt_loop(camera_state: VisionSegment, nt_state: NetworkState):
         receive_timestamp_us = int(wpilib.Timer.getFPGATimestamp() * 1e6)
         # Handle the case where the we have a negative processing time.
         if receive_timestamp_us < camera_state.last_capture_time:
-            # log.info("um")
-            # await asyncio.sleep(0.001)
             return
-            # continue
         pose = camera_state.last_pose
+        last_ids = camera_state.last_ids
 
         if pose is not None:
             pnp_result = PnpResult(best=Transform3d.fromMatrix(pose))
@@ -41,7 +40,11 @@ async def nt_loop(camera_state: VisionSegment, nt_state: NetworkState):
             ),
             sequenceID=camera_state.sequence_id,
         )
-        result = PhotonPipelineResult(metadata=metadata, multitagResult=multi_result)
+        result = PhotonPipelineResult(
+            metadata=metadata,
+            multitagResult=multi_result,
+            targets=[PhotonTrackedTarget(fiducialId=id) for id in last_ids],
+        )
         nt_state.nt_wrapper.latencyMillisEntry.set(
             result.getLatencyMillis(), receive_timestamp_us
         )
@@ -74,9 +77,14 @@ async def nt_loop(camera_state: VisionSegment, nt_state: NetworkState):
                 bestTarget.getSkew(), receive_timestamp_us
             )
 
-            nt_state.nt_wrapper.targetPoseEntry.set(
-                bestTarget.getBestCameraToTarget(), receive_timestamp_us
-            )
+            if camera_state.last_pose is not None:
+                nt_state.nt_wrapper.targetPoseEntry.set(
+                    Transform3d.fromMatrix(camera_state.last_pose), receive_timestamp_us
+                )
+            else:
+                nt_state.nt_wrapper.targetPoseEntry.set(
+                    bestTarget.getBestCameraToTarget(), receive_timestamp_us
+                )
 
         nt_state.nt_wrapper.heartbeatPublisher.set(
             metadata.sequenceID, receive_timestamp_us

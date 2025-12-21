@@ -45,7 +45,7 @@ def process_frame(
     calib = app_config.calibration.size_calib_data.get(res_key)
     if not calib:
         K = np.array(
-            [[800, 0, gray.shape[1] // 2], [0, 800, gray.shape[0] // 2], [0, 0, 1]],
+            [[1050, 0, gray.shape[1] // 2], [0, 1050, gray.shape[0] // 2], [0, 0, 1]],
         )
         dist = np.array([0] * 4)
     else:
@@ -131,7 +131,7 @@ def process_frame(
 
     # Multi-tag PnP
     T_field_robot = None
-    if len(obj_pts) >= 4:
+    if len(obj_pts) >= 4 and len(obj_pts) % 4 == 0:
         obj = np.array(obj_pts, dtype=np.float32)
         img = np.array(img_pts, dtype=np.float32).reshape(-1, 1, 2)
         ok, r, t = cv2.solvePnP(obj, img, K, dist)
