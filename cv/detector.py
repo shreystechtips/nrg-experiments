@@ -42,15 +42,15 @@ def process_frame(
     display = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
 
     res_key = f"{gray.shape[1]}x{gray.shape[0]}"
-    calib = app_config.calibration.size_calib_data.get(res_key)
+    calib = app_config.calibration.get(app_config.selected_camera, {}).get(res_key)
     if not calib:
         K = np.array(
             [[1050, 0, gray.shape[1] // 2], [0, 1050, gray.shape[0] // 2], [0, 0, 1]],
         )
         dist = np.array([0] * 4)
     else:
-        K = calib.cameraMatrix
-        dist = calib.distCoeffs
+        K = np.array(calib.cameraMatrix)
+        dist = np.array(calib.distCoeffs)
 
     detections = detector_state.detector.detect(gray)
 

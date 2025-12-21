@@ -37,10 +37,8 @@ class PipelineSettings(BaseModel):
 
 
 class CalibrationData(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-    cameraMatrix: np.ndarray
-    distCoeffs: np.ndarray
-    reprojectionError: float
+    cameraMatrix: list[list[float]]
+    distCoeffs: list[list[float]]
 
 
 class CalibrationSettings(BaseModel):
@@ -58,7 +56,6 @@ class RobotOffset(BaseModel):
 class GlobalSettings(BaseModel):
     tag_size_m: float = Field(default=0.1524)
     team_number: int = Field(default=948)
-    nt_server_addr: str = Field(default="10.9.48.0")
     led_brightness: int = Field(default=0, ge=0, le=1)
     driver_mode: bool = Field(default=False)
     camera_name: str = Field(default="change_me")
@@ -75,10 +72,10 @@ class CalibrationCaptures(BaseModel):
 class CalibConfig(BaseModel):
     board_type: str = Field(default="Charuco")
     tag_family: str = Field(default="DICT_4X4_1000")
-    pattern_spacing_in: float = Field(default=1.0)
-    marker_size_in: float = Field(default=0.75)
-    board_width_sq: int = Field(default=8)
-    board_height_sq: int = Field(default=8)
+    sq_len: float = Field(default=0.03)
+    marker_len: float = Field(default=0.015)
+    board_width_sq: int = Field(default=5)
+    board_height_sq: int = Field(default=7)
     calib_runtime: CalibrationCaptures = Field(
         default_factory=CalibrationCaptures, exclude=True
     )
@@ -88,7 +85,7 @@ class UISettings(BaseModel):
     selected_camera: int = Field(default=0)
     camera_settings: CameraSettings = Field(default_factory=CameraSettings)
     pipeline: PipelineSettings = Field(default_factory=PipelineSettings)
-    calibration: CalibrationSettings = Field(default_factory=CalibrationSettings)
+    calibration: dict[int, dict[str, CalibrationData]] = Field(default_factory=dict)
     robot_offset: RobotOffset = Field(default_factory=RobotOffset)
     global_data: GlobalSettings = Field(default_factory=GlobalSettings)
     calib_config: CalibConfig = Field(default_factory=CalibConfig)

@@ -64,7 +64,7 @@ def load_config():
     try:
         with CONFIG_PATH.open() as f:
             app_config = UISettings.model_validate_json(f.read())
-        init_calib_board(app_config)
+        init_calib_board(app_config.calib_config)
         nt_state = NetworkState.quick_create(
             camera_name=app_config.global_data.camera_name,
             team_number=app_config.global_data.team_number,
@@ -183,7 +183,9 @@ async def mjpeg_handler(request: web.Request):
             f"--{boundary}\r\n"
             f"Content-Type: image/jpeg\r\n"
             f"Content-Length: {len(jpg_bytes)}\r\n\r\n"  # <-- correct length
-        ).encode("utf-8")  # <-- pure bytes
+        ).encode(
+            "utf-8"
+        )  # <-- pure bytes
 
         try:
             await response.write(header + jpg_bytes + b"\r\n")
@@ -252,7 +254,7 @@ async def ws_handler(request):
                 app_config.calib_config = app_config.calib_config.model_copy(
                     update=data.get("config", {})
                 )
-                init_calib_board(app_config)
+                init_calib_board(app_config.calib_config)
 
             elif t == "calib_capture":
                 if camera_state.current_frame_raw is not None:
@@ -277,9 +279,6 @@ async def ws_handler(request):
                 await ws.send_json({"type": "calib_status", "count": 0})
 
             elif t == "nt_server":
-                # TODO: Handle this
-                if ip := data.get("address"):
-                    app_config.global_data.nt_server_addr = ip
                 nt_state.nt_instance.setServerTeam(app_config.global_data.team_number)
 
             elif t == "global":
@@ -313,7 +312,7 @@ async def main():
     apply_camera_settings(app_config, camera_state)
     load_field_layout()
     detector_state.detector = init_detector(app_config.pipeline)
-    init_calib_board(app_config)
+    init_calib_board(app_config.calib_config)
 
     threading.Thread(target=video_loop, daemon=True).start()
 
