@@ -1,0 +1,11 @@
+# This file goes in /lib/systemd/system/photonvision.service 
+[Unit]
+Description=PhotonVision
+
+[Service]
+Type=simple
+ExecStart=uv run --project /app /app/server.py
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
