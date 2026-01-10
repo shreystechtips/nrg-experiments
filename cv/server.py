@@ -5,7 +5,7 @@ import logging
 import threading
 import time
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Optional
 
 import cv2
 import wpilib
@@ -20,11 +20,13 @@ from detector import init_detector, process_frame
 from model import DetectorState, NetworkState, UISettings, VisionSegment
 from network import nt_loop
 
+script_path = Path(__file__).parent
+
 async_log = Logger.with_default_handlers(name="photonvision", level=LogLevel.INFO)
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("photonvision")
 
-CONFIG_PATH = Path("photonvision_config.json")
+CONFIG_PATH = script_path / Path("photonvision_config.json")
 _save_lock = threading.Lock()
 _save_timer: Optional[threading.Timer] = None
 
@@ -300,7 +302,7 @@ async def main():
     app = web.Application()
     app.router.add_get("/stream", mjpeg_handler)
     app.router.add_get("/ws", ws_handler)
-    app.router.add_static("/", path=Path("www"), show_index=True)
+    app.router.add_static("/", path=script_path / Path("www"), show_index=True)
 
     runner = web.AppRunner(app)
     await runner.setup()
