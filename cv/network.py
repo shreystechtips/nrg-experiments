@@ -23,11 +23,10 @@ async def nt_loop(camera_state: VisionSegment, nt_state: NetworkState):
         # Handle the case where the we have a negative processing time.
         if receive_timestamp_us < camera_state.last_capture_time:
             return
-        pose = camera_state.last_pose
-        last_ids = camera_state.last_ids
+        pnp_result = camera_state.last_pnp
+        last_targets = camera_state.last_targets
 
-        if pose is not None:
-            pnp_result = PnpResult(best=Transform3d.fromMatrix(pose))
+        if pnp_result is not None:
             multi_result = MultiTargetPNPResult(
                 estimatedPose=pnp_result, fiducialIDsUsed=camera_state.last_ids
             )
@@ -43,7 +42,7 @@ async def nt_loop(camera_state: VisionSegment, nt_state: NetworkState):
         result = PhotonPipelineResult(
             metadata=metadata,
             multitagResult=multi_result,
-            targets=[PhotonTrackedTarget(fiducialId=id) for id in last_ids],
+            targets=last_targets,
         )
         nt_state.nt_wrapper.latencyMillisEntry.set(
             result.getLatencyMillis(), receive_timestamp_us
@@ -77,9 +76,9 @@ async def nt_loop(camera_state: VisionSegment, nt_state: NetworkState):
                 bestTarget.getSkew(), receive_timestamp_us
             )
 
-            if camera_state.last_pose is not None:
+            if pnp_result is not None:
                 nt_state.nt_wrapper.targetPoseEntry.set(
-                    Transform3d.fromMatrix(camera_state.last_pose), receive_timestamp_us
+                    pnp_result.best, receive_timestamp_us
                 )
             else:
                 nt_state.nt_wrapper.targetPoseEntry.set(

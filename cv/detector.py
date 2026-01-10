@@ -5,8 +5,13 @@ import cv2
 import numpy as np
 from aiologger import Logger
 from aiologger.levels import LogLevel
+from photonlibpy.estimation.targetModel import TargetModel
+from photonlibpy.estimation.visionEstimation import VisionEstimation
+from photonlibpy.targeting import PhotonTrackedTarget
+from photonlibpy.targeting.multiTargetPNPResult import PnpResult
+from photonlibpy.targeting.TargetCorner import TargetCorner
 from pupil_apriltags import Detector
-from scipy.spatial.transform import Rotation
+from robotpy_apriltag import AprilTagFieldLayout
 
 from model import DetectorState, PipelineSettings, UISettings, VisionSegment
 
@@ -33,7 +38,7 @@ def process_frame(
     app_config: UISettings,
     detector_state: DetectorState,
     camera_state: VisionSegment,
-    field_tag_poses,
+    field_layout: AprilTagFieldLayout,
     capture_timestamp: int,
     draw_ui_elements: bool = False,
 ):
@@ -54,14 +59,12 @@ def process_frame(
 
     detections = detector_state.detector.detect(gray)
 
-    obj_pts = []
-    img_pts = []
-    detected_targets: list[int] = []
-
+    visTags: list[PhotonTrackedTarget] = list()
+    available_tags = field_layout.getTags()
+    available_ids = [tag.ID for tag in available_tags]
     for d in detections:
-        if d.tag_id not in field_tag_poses:
+        if d.tag_id not in available_ids:
             continue
-        detected_targets.append(d.tag_id)
         if draw_ui_elements:
             # Draw tag
             corners = d.corners.astype(int)
@@ -88,32 +91,19 @@ def process_frame(
         local = np.array(
             [
                 [0, -s / 2, -s / 2],
-                [0, s / 2, -s / 2],
-                [0, s / 2, s / 2],
                 [0, -s / 2, s / 2],
+                [0, s / 2, s / 2],
+                [0, s / 2, -s / 2],
             ],
             dtype=np.float32,
         )
 
-        pose = field_tag_poses[d.tag_id]
-        t = np.array(
-            [
-                pose["translation"]["x"],
-                pose["translation"]["y"],
-                pose["translation"]["z"],
-            ]
+        visTags.append(
+            PhotonTrackedTarget(
+                detectedCorners=[TargetCorner(*r) for r in d.corners],
+                fiducialId=d.tag_id,
+            )
         )
-        q = [
-            pose["rotation"]["quaternion"]["W"],
-            pose["rotation"]["quaternion"]["X"],
-            pose["rotation"]["quaternion"]["Y"],
-            pose["rotation"]["quaternion"]["Z"],
-        ]
-        R = Rotation.from_quat(q, scalar_first=True).as_matrix()
-
-        for pt in local:
-            obj_pts.append(R @ pt + t)
-        img_pts.extend(d.corners)
 
         if draw_ui_elements:
             # Per-tag PnP for axes
@@ -130,39 +120,13 @@ def process_frame(
                 cv2.line(display, o, tuple(pts[3]), (255, 0, 0), 3)  # Z
 
     # Multi-tag PnP
-    T_field_robot = None
-    if len(obj_pts) >= 4 and len(obj_pts) % 4 == 0:
-        obj = np.array(obj_pts, dtype=np.float32)
-        img = np.array(img_pts, dtype=np.float32).reshape(-1, 1, 2)
-        ok, r, t = cv2.solvePnP(obj, img, K, dist)
-        if ok:
-            R_cam, _ = cv2.Rodrigues(r)
-            T_cam_field = np.eye(4)
-            T_cam_field[:3, :3] = R_cam
-            T_cam_field[:3, 3] = t.flatten()
-            T_field_cam = np.linalg.inv(T_cam_field)
-
-            # Camera → Robot
-            yaw = np.deg2rad(app_config.robot_offset.yaw)
-            R_cr = np.array(
-                [
-                    [np.cos(yaw), -np.sin(yaw), 0],
-                    [np.sin(yaw), np.cos(yaw), 0],
-                    [0, 0, 1],
-                ]
-            )
-            t_cr = np.array(
-                [
-                    app_config.robot_offset.tx,
-                    app_config.robot_offset.ty,
-                    app_config.robot_offset.tz,
-                ]
-            )
-            T_cam_robot = np.eye(4)
-            T_cam_robot[:3, :3] = R_cr
-            T_cam_robot[:3, 3] = t_cr
-
-            T_field_robot = T_field_cam @ T_cam_robot
+    pnp_result: PnpResult | None = None
+    if len(visTags) > 0:
+        pnp_result = VisionEstimation.estimateCamPosePNP(
+            K, np.array(dist), visTags, field_layout, TargetModel.AprilTag36h11()
+        )
+        if pnp_result is None:
+            log.info("failed to get transforms")
 
     if draw_ui_elements:
         # Mini-map
@@ -178,11 +142,13 @@ def process_frame(
             (255, 255, 255),
             1,
         )
-        for tid, p in field_tag_poses.items():
-            px = int(ox + p["translation"]["x"] * scale)
-            py = int(oy + p["translation"]["y"] * scale)
+        for tag in available_tags:
+            pose = tag.pose
+            px = int(ox + pose.X() * scale)
+            py = int(oy + pose.Y() * scale)
             cv2.circle(map_img, (px, py), 2, (0, 255, 0), -1)
-        if T_field_robot is not None:
+        if pnp_result is not None:
+            T_field_robot: np.ndarray = pnp_result.best.toMatrix()
             pos = T_field_robot[:3, 3]
             px = int(ox + pos[0] * scale)
             py = int(oy + pos[1] * scale)
@@ -219,7 +185,7 @@ def process_frame(
         )
         cv2.putText(
             display,
-            f"Tags: {len(detections)}",
+            f"Tags: {len(visTags)}",
             (10, 90),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.6,
@@ -227,10 +193,10 @@ def process_frame(
             2,
         )
 
-    camera_state.last_pose = T_field_robot
+    camera_state.last_pnp = pnp_result
     camera_state.last_latency = latency
     camera_state.current_frame_processed = display
-    camera_state.last_ids = detected_targets
+    camera_state.last_targets = visTags
     camera_state.last_capture_time = capture_timestamp
 
-    return [d.tag_id for d in detections]
+    return [d.fiducialId for d in visTags]

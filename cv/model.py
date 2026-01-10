@@ -1,4 +1,5 @@
 import threading
+import time
 
 import cv2
 import numpy as np
@@ -6,6 +7,8 @@ from ntcore import NetworkTable, NetworkTableInstance
 from photonlibpy.networktables.NTTopicSet import (
     NTTopicSet,
 )
+from photonlibpy.targeting.multiTargetPNPResult import PnpResult
+from photonlibpy.targeting.photonTrackedTarget import PhotonTrackedTarget
 from pupil_apriltags import Detector
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
@@ -104,11 +107,16 @@ class VisionSegment(BaseModel):
     current_cap: cv2.VideoCapture | None = Field(default=None)
     current_frame_raw: np.ndarray | None = None
     current_frame_processed: np.ndarray | None = None
-    last_pose: np.ndarray | None = None
+    last_pnp: PnpResult | None = None
     last_latency: float = 0.0
-    last_ids: list[int] = Field(default_factory=list)
+    last_targets: list[PhotonTrackedTarget] = Field(default_factory=list)
     last_capture_time: int = -1
     sequence_id: int = 0
+
+    @computed_field
+    @property
+    def last_ids(self) -> list[int]:
+        return [target.fiducialId for target in self.last_targets]
 
     @computed_field
     def fps(self) -> float:

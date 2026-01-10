@@ -15,7 +15,7 @@ dependencies = [
     "pupil-apriltags>=1.0.4.post11",
     "pydantic>=2.12.4",
     "requests>=2.32.5",
-    "scipy>=1.16.3",
+    "robotpy-apriltag>=2025.3.2.3",
     "websockets>=15.0.1",
 ]
 

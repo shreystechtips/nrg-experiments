@@ -12,6 +12,7 @@ import wpilib
 from aiohttp import WSMsgType, web
 from aiologger import Logger
 from aiologger.levels import LogLevel
+from robotpy_apriltag import AprilTagField, AprilTagFieldLayout
 
 from calibration import compute_calibration, init_calib_board
 from camera import apply_camera_settings, discover_cameras, open_selected_camera
@@ -79,24 +80,7 @@ detector_state = DetectorState()
 # --------------------------------------------------------------
 # Field Layout
 # --------------------------------------------------------------
-FIELD_LAYOUT_URL = "https://raw.githubusercontent.com/wpilibsuite/allwpilib/main/apriltag/src/main/native/resources/edu/wpi/first/apriltag/2025-reefscape-welded.json"
-field_tag_poses: Dict[int, Dict] = {}
-
-
-def load_field_layout():
-    global field_tag_poses
-    try:
-        import requests
-
-        # r = requests.get(FIELD_LAYOUT_URL, timeout=5)
-        # r.raise_for_status()
-        # data = r.json()
-        with open("2025-reefscape-welded.json", "r") as f:
-            data = json.load(f)
-        field_tag_poses = {t["ID"]: t["pose"] for t in data.get("tags", [])}
-        async_log.info(f"Loaded {len(field_tag_poses)} tags")
-    except Exception as e:
-        async_log.warning(f"Field layout failed: {e}")
+field_layout = AprilTagFieldLayout.loadField(AprilTagField.k2025ReefscapeWelded)
 
 
 # --------------------------------------------------------------
@@ -131,14 +115,14 @@ def video_loop():
                 app_config,
                 detector_state,
                 camera_state,
-                field_tag_poses,
+                field_layout,
                 capture_timestamp,
                 draw_ui_elements=not app_config.global_data.driver_mode,
             )
         except Exception as e:
             log.error(e)
             # Reset the last pose so that Robot code knows that we have stale data.
-            camera_state.last_pose = None
+            camera_state.last_pnp = None
         finally:
             camera_state.current_frame_raw = frame
             camera_state.sequence_id += 1
@@ -183,9 +167,7 @@ async def mjpeg_handler(request: web.Request):
             f"--{boundary}\r\n"
             f"Content-Type: image/jpeg\r\n"
             f"Content-Length: {len(jpg_bytes)}\r\n\r\n"  # <-- correct length
-        ).encode(
-            "utf-8"
-        )  # <-- pure bytes
+        ).encode("utf-8")  # <-- pure bytes
 
         try:
             await response.write(header + jpg_bytes + b"\r\n")
@@ -310,7 +292,6 @@ async def main():
     discover_cameras(camera_state)
     open_selected_camera(app_config, camera_state)
     apply_camera_settings(app_config, camera_state)
-    load_field_layout()
     detector_state.detector = init_detector(app_config.pipeline)
     init_calib_board(app_config.calib_config)
 
