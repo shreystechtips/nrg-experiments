@@ -273,9 +273,18 @@ async def ws_handler(request):
                 nt_state.nt_instance.setServerTeam(app_config.global_data.team_number)
 
             elif t == "global":
+                update_data = data.get("global", {})
+                name_updated = False
+                if (
+                    "camera_name" in update_data
+                    and update_data["camera_name"] != app_config.global_data.camera_name
+                ):
+                    name_updated = True
                 app_config.global_data = app_config.global_data.model_copy(
                     update=data.get("global", {})
                 )
+                if name_updated:
+                    nt_state.update_camera_table(app_config.global_data.camera_name)
             _debounced_save()
 
     finally:

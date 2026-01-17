@@ -304,6 +304,15 @@
             />
             <button class="reset-btn" data-field="mdns_name">R</button>
           </div>
+          <label>Network tables Camera Name</label>
+          <div class="input-group">
+            <input
+              type="text"
+              id="camera_name"
+              placeholder="for nt robot code reading"
+            />
+            <button class="reset-btn" data-field="camera_name">R</button>
+          </div>
           <button id="apply_network">Apply</button>
         </div>
 
@@ -354,6 +363,7 @@
         nt_server: document.getElementById("nt_server"),
         ip_suffix: document.getElementById("ip_suffix"),
         mdns_name: document.getElementById("mdns_name"),
+        camera_name: document.getElementById("camera_name"),
         board_type: document.getElementById("board_type"),
         tag_family: document.getElementById("tag_family"),
         board_w: document.getElementById("board_w"),
@@ -406,6 +416,7 @@
         els.driver_mode.checked = cfg.global_data?.driver_mode ?? false;
         els.nt_server.value = cfg.global_data?.nt_server ?? "";
         els.mdns_name.value = cfg.global_data?.mdns_name ?? "";
+        els.camera_name.value = cfg.global_data?.camera_name ?? "";
         els.ip_suffix.value = cfg.global_data?.ip_suffix ?? "";
 
         els.board_type.value = cfg.calib_config?.board_type ?? "Charuco";
@@ -531,6 +542,7 @@
             global:{
               ip_suffix: parseInt(els.ip_suffix.value.trim()),
               mdns_name: els.mdns_name.value.trim(),
+              camera_name: els.camera_name.value.trim()
             }
           })
         );

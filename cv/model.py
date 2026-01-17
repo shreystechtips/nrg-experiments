@@ -137,6 +137,11 @@ class NetworkState(BaseModel):
     nt_wrapper: NTTopicSet
     nt_instance: NetworkTableInstance
 
+    def update_camera_table(self, new_name: str):
+        self.cam_table = self.root_table.getSubTable(new_name)
+        self.nt_wrapper = NTTopicSet(self.cam_table)
+        self.nt_wrapper.updateEntries()
+
     @classmethod
     def quick_create(
         cls,
