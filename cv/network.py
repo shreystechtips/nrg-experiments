@@ -8,7 +8,6 @@ from photonlibpy.targeting.photonPipelineResult import (
     PhotonPipelineMetadata,
     PhotonPipelineResult,
 )
-from photonlibpy.targeting.photonTrackedTarget import PhotonTrackedTarget
 from wpimath.geometry import Transform3d
 
 from model import NetworkState, VisionSegment
@@ -16,13 +15,24 @@ from model import NetworkState, VisionSegment
 log = Logger.with_default_handlers(name="photonvision_serialize", level=LogLevel.INFO)
 
 
-## TODO: think about how this can be made more async
 async def nt_loop(camera_state: VisionSegment, nt_state: NetworkState):
+    last_last_capture_time: int | None = None
     while True:
         receive_timestamp_us = int(wpilib.Timer.getFPGATimestamp() * 1e6)
         # Handle the case where the we have a negative processing time.
-        if receive_timestamp_us < camera_state.last_capture_time:
-            return
+        last_capture_time = camera_state.last_capture_time
+        if receive_timestamp_us < last_capture_time:
+            await asyncio.sleep(0.0005)
+            continue
+
+        if last_last_capture_time is None:
+            last_last_capture_time = last_capture_time
+
+        # If no new data has been published, wait and try again
+        if last_capture_time <= last_last_capture_time:
+            await asyncio.sleep(0.000005)
+            continue
+
         pnp_result = camera_state.last_pnp
         last_targets = camera_state.last_targets
 
@@ -90,4 +100,5 @@ async def nt_loop(camera_state: VisionSegment, nt_state: NetworkState):
         )
 
         nt_state.nt_wrapper.subTable.getInstance().flush()
+        last_last_capture_time = last_capture_time
         await asyncio.sleep(0.0000000000000001)
