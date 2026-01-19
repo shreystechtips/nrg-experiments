@@ -1,16 +1,20 @@
+import logging
+import shutil
 import threading
 import time
+from pathlib import Path
+from traceback import format_exc
 
 import cv2
 import numpy as np
 from ntcore import NetworkTable, NetworkTableInstance
-from photonlibpy.networktables.NTTopicSet import (
-    NTTopicSet,
-)
+from photonlibpy.networktables.NTTopicSet import NTTopicSet
 from photonlibpy.targeting.multiTargetPNPResult import PnpResult
 from photonlibpy.targeting.photonTrackedTarget import PhotonTrackedTarget
 from pupil_apriltags import Detector
 from pydantic import BaseModel, ConfigDict, Field, computed_field
+
+log = logging.getLogger("photonvision_model")
 
 
 class CameraSettings(BaseModel):
@@ -168,3 +172,40 @@ class NetworkState(BaseModel):
             nt_instance=nt_instance,
             nt_wrapper=nt_wrapper,
         )
+
+
+class SafeFile:
+    """A file which tries to prevent memory corruption on saves."""
+
+    def __init__(self, path: Path, load_func, save_func):
+        self.path: Path = path
+        self.save_func = save_func
+        self.load_func = load_func
+        self.tmp: Path = self.path.with_suffix(".tmp")
+
+    def save_file(self, data, **kwargs):
+        """Save a file safely to ensure that data is not corrupted on the main file."""
+        # Save file to temp location.
+        with self.tmp.open("w") as f:
+            self.save_func(data, f, **kwargs)
+        # Copy the file.
+        shutil.copy(self.tmp, self.path)
+
+        # Delete the file.
+        self.tmp.unlink()
+
+    def load_file(self):
+        # Check if the temp file still exists from an unclean reboot.
+        if self.tmp.exists():
+            try:
+                with open(self.tmp, "r") as f:
+                    loaded_file = self.load_func(f.read())
+                    self.tmp.unlink()
+                    log.info("Loaded file from old half-save state")
+                    return loaded_file
+            except:
+                log.error(
+                    "Error loading file. Leaving it as is for debug \n %s", format_exc()
+                )
+        with open(self.path, "r") as f:
+            return self.load_func(f.read())

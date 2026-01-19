@@ -1,9 +1,10 @@
-from pydantic import BaseModel, Field
-import cv2
 import sys
+
+import cv2
+from pydantic import BaseModel, Field
+
 from calibration import init_calib_board
 from model import CalibConfig
-
 
 cfg = CalibConfig()
 b = init_calib_board(cfg)

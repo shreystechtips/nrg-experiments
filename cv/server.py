@@ -17,7 +17,7 @@ from robotpy_apriltag import AprilTagField, AprilTagFieldLayout
 from calibration import compute_calibration, init_calib_board
 from camera import apply_camera_settings, discover_cameras, open_selected_camera
 from detector import init_detector, process_frame
-from model import DetectorState, NetworkState, UISettings, VisionSegment
+from model import DetectorState, NetworkState, SafeFile, UISettings, VisionSegment
 from network import nt_loop
 
 script_path = Path(__file__).parent
@@ -26,8 +26,17 @@ async_log = Logger.with_default_handlers(name="photonvision", level=LogLevel.INF
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("photonvision")
 
-CONFIG_PATH = script_path / Path("photonvision_config.json")
-IP_PATH = script_path / Path("ip_suffix.txt")
+CONFIG_FILE = SafeFile(
+    script_path / Path("photonvision_config.json"),
+    load_func=UISettings.model_validate_json,
+    save_func=lambda data, f: json.dump(data, f, indent=2),
+)
+
+IP_FILE = SafeFile(
+    script_path / Path("ip_suffix.txt"),
+    load_func=lambda data: data,
+    save_func=lambda data, f: f.write(data),
+)
 _save_lock = threading.Lock()
 _save_timer: Optional[threading.Timer] = None
 
@@ -50,16 +59,10 @@ def _debounced_save():
 
 
 def _do_save():
-    tmp = CONFIG_PATH.with_suffix(".tmp")
-    with tmp.open("w") as f:
-        json.dump(app_config.model_dump(exclude_none=True), f, indent=2)
-    tmp.replace(CONFIG_PATH)
-    tmp_ip = IP_PATH.with_suffix(".tmp")
-    with tmp_ip.open("w") as f:
-        f.write(
-            f"{app_config.global_data.ip_suffix}\n{app_config.global_data.mdns_name}"
-        )
-    tmp_ip.replace(IP_PATH)
+    CONFIG_FILE.save_file(app_config.model_dump(exclude_none=True))
+
+    ip_data = f"{app_config.global_data.ip_suffix}\n{app_config.global_data.mdns_name}"
+    IP_FILE.save_file(ip_data)
     log.info("Config saved")
     # except Exception as e:
     #     async_log.error(f"Save failed: {e}")
@@ -68,12 +71,11 @@ def _do_save():
 def load_config():
     global app_config
     global nt_state
-    if not CONFIG_PATH.exists():
+    if not CONFIG_FILE.path.exists():
         async_log.info("No config – using defaults")
         return
     try:
-        with CONFIG_PATH.open() as f:
-            app_config = UISettings.model_validate_json(f.read())
+        app_config = CONFIG_FILE.load_file()
         init_calib_board(app_config.calib_config)
         nt_state = NetworkState.quick_create(
             camera_name=app_config.global_data.camera_name,
@@ -274,16 +276,18 @@ async def ws_handler(request):
 
             elif t == "global":
                 update_data = data.get("global", {})
-                name_updated = False
-                if (
+
+                # Check if the camera name is updated
+                camera_name_updated = (
                     "camera_name" in update_data
                     and update_data["camera_name"] != app_config.global_data.camera_name
-                ):
-                    name_updated = True
+                )
                 app_config.global_data = app_config.global_data.model_copy(
                     update=data.get("global", {})
                 )
-                if name_updated:
+
+                # Force the networktable path to be updated
+                if camera_name_updated:
                     nt_state.update_camera_table(app_config.global_data.camera_name)
             _debounced_save()
 
