@@ -76,10 +76,10 @@ class CalibrationCaptures(BaseModel):
 class CalibConfig(BaseModel):
     board_type: str = Field(default="Charuco")
     tag_family: str = Field(default="DICT_4X4_1000")
-    sq_len: float = Field(default=0.03)
-    marker_len: float = Field(default=0.015)
-    board_width_sq: int = Field(default=5)
-    board_height_sq: int = Field(default=7)
+    sq_len: float = Field(default=1)
+    marker_len: float = Field(default=0.75)
+    board_width_sq: int = Field(default=8)
+    board_height_sq: int = Field(default=8)
     calib_runtime: CalibrationCaptures = Field(
         default_factory=CalibrationCaptures, exclude=True
     )
