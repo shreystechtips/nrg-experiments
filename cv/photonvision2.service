@@ -1,0 +1,11 @@
+# This file goes in /lib/systemd/system/photonvision2.service
+[Unit]
+Description=PhotonVision
+
+[Service]
+Type=simple
+ExecStart=uv run --project /app /app/server.py --instance "Instance 2" --port 8081 --config_file "/app/cv/photonvision_config2.json"
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

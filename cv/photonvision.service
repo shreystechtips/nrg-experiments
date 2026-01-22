@@ -1,10 +1,10 @@
-# This file goes in /lib/systemd/system/photonvision.service 
+# This file goes in /lib/systemd/system/photonvision.service
 [Unit]
 Description=PhotonVision
 
 [Service]
 Type=simple
-ExecStart=uv run --project /app /app/server.py
+ExecStart=uv run --project /app /app/server.py --master --instance "Instance 1" --port 8080 --config_file "/app/cv/photonvision_config.json" --ip_file "/app/cv/ip_suffix.txt"
 Restart=on-failure
 
 [Install]
