@@ -274,6 +274,7 @@
 
       <!-- ========== SETTINGS TAB ========== -->
       <div id="tab-settings" class="tab">
+        <h2 id="field_type">FIELD TYPE UNKNOWN</h2>
         <div class="panel">
           <h3>NetworkTables</h3>
           <label>NT Server Address (optional)</label>
@@ -347,6 +348,7 @@
     <script>
       const ws = new WebSocket(`ws://${location.host}/ws`);
       const els = {
+        field_type: document.getElementById("field_type"),
         operating_as_master: document.getElementById("operating_as_master"),
         instance_name: document.getElementById("instance_name"),
         master_only_section: document.getElementById("master_only_section"),
@@ -454,6 +456,7 @@
           els.title.textContent = `${msg.instance} - PyVision`;
           els.instance_name.textContent = `Vision Instance: ${msg.instance}`;
           els.operating_as_master.textContent = `IS MASTER INSTANCE: ${msg.master}`;
+          els.field_type.textContent = `Field: ${msg.field_type}`;
           els.master_only_section.style.display = msg.master ? 'block' : 'none';
         }
         if (msg.type === "cameras") {

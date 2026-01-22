@@ -59,6 +59,23 @@ parser.add_argument(
     action="store_true",
     help="Whether or not it is operating as master. The master instance can control the IP and hostname.",
 )
+parser.add_argument(
+    "-l",
+    "--field-layout",
+    type=str,
+    default="k2025ReefscapeWelded",
+    choices=[
+        "k2022RapidReact",
+        "k2023ChargedUp",
+        "k2024Crescendo",
+        "k2025ReefscapeAndyMark",
+        "k2025ReefscapeWelded",
+        "k2026RebuiltAndyMark",
+        "k2026RebuiltWelded",
+        "kDefaultField",
+        "kNumFields",
+    ],
+)
 args = parser.parse_args()
 
 CONFIG_FILE = SafeFile(
@@ -132,7 +149,8 @@ detector_state = DetectorState()
 # --------------------------------------------------------------
 # Field Layout
 # --------------------------------------------------------------
-field_layout = AprilTagFieldLayout.loadField(AprilTagField.k2025ReefscapeWelded)
+field_layout = AprilTagFieldLayout.loadField(getattr(AprilTagField, args.field_layout))
+logging.info(f"Loaded field: {args.field_layout}")
 
 
 # --------------------------------------------------------------
@@ -261,6 +279,7 @@ async def ws_handler(request):
                     {
                         "instance": args.instance,
                         "master": args.master,
+                        "field_type": args.field_layout,
                         "type": "instance",
                     }
                 )
