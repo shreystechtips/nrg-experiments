@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import argparse
 import asyncio
 import json
 import logging
@@ -26,14 +27,48 @@ async_log = Logger.with_default_handlers(name="photonvision", level=LogLevel.INF
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("photonvision")
 
+parser = argparse.ArgumentParser(prog="PythonVision", description="PythonVision Args.")
+parser.add_argument(
+    "-i",
+    "--instance",
+    type=str,
+    required=True,
+    help="The instance name of the vision server to help differentiate.",
+)
+parser.add_argument(
+    "-p", "--port", type=int, required=True, help="The IP to run the instance on."
+)
+parser.add_argument(
+    "-c",
+    "--config_file",
+    type=Path,
+    required=True,
+    help="The path of the config file with the instance settings.",
+    default=script_path / Path("photonvision_config.json"),
+)
+parser.add_argument(
+    "-d",
+    "--ip_file",
+    type=Path,
+    help="The path of the IP file where the IP is configured. Only applies where the instance is running as 'master'",
+    default=script_path / Path("ip_suffix.txt"),
+)
+parser.add_argument(
+    "-m",
+    "--master",
+    action="store_true",
+    help="Whether or not it is operating as master. The master instance can control the IP and hostname.",
+)
+args = parser.parse_args()
+
 CONFIG_FILE = SafeFile(
-    script_path / Path("photonvision_config.json"),
+    args.config_file,
     load_func=UISettings.model_validate_json,
     save_func=lambda data, f: json.dump(data, f, indent=2),
 )
 
 IP_FILE = SafeFile(
-    script_path / Path("ip_suffix.txt"),
+    args.ip_file,
     load_func=lambda data: data,
     save_func=lambda data, f: f.write(data),
 )
@@ -61,8 +96,13 @@ def _debounced_save():
 def _do_save():
     CONFIG_FILE.save_file(app_config.model_dump(exclude_none=True))
 
-    ip_data = f"{app_config.global_data.ip_suffix}\n{app_config.global_data.mdns_name}"
-    IP_FILE.save_file(ip_data)
+    if args.master:
+        ip_data = (
+            f"{app_config.global_data.ip_suffix}\n{app_config.global_data.mdns_name}"
+        )
+        IP_FILE.save_file(ip_data)
+    else:
+        log.info("Not running as master. Will not update IP.")
     log.info("Config saved")
     # except Exception as e:
     #     async_log.error(f"Save failed: {e}")
@@ -73,6 +113,7 @@ def load_config():
     global nt_state
     if not CONFIG_FILE.path.exists():
         async_log.info("No config – using defaults")
+        _do_save()
         return
     try:
         app_config = CONFIG_FILE.load_file()
@@ -215,6 +256,8 @@ async def ws_handler(request):
                     }
                 )
 
+            elif t == "get_instance":
+                await ws.send_json({"instance": args.instance, "master": args.master})
             elif t == "get_config":
                 await ws.send_json(make_config())
 
@@ -326,9 +369,9 @@ async def main():
 
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, "0.0.0.0", 8080)
+    site = web.TCPSite(runner, "0.0.0.0", args.port)
     await site.start()
-    async_log.info("Server running on http://<ip>:8080")
+    async_log.info("Server running on http://<ip>:%s" % args.port)
 
     await nt_loop(camera_state, nt_state)
     # threading.Thread(target=video_loop, daemon=True).start()
