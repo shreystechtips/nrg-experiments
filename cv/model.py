@@ -18,24 +18,24 @@ log = logging.getLogger("photonvision_model")
 
 
 class CameraSettings(BaseModel):
-    exposure: int = 12000
-    gain: int = 12
-    brightness: int = 50
+    exposure: int = 500
+    gain: int = 2
+    brightness: int = 2
     white_balance: int = 4600
-    auto_exposure: bool = False
+    auto_exposure: bool = True
     auto_white_balance: bool = True
     led_mode: int = 1
-    res_x: int = 1920
-    res_y: int = 1080
+    res_x: int = 1280
+    res_y: int = 800
 
 
 class PipelineSettings(BaseModel):
     family: str = "tag36h11"
-    nthreads: int = 4
-    quad_decimate: float = 1.0
+    nthreads: int = 8
+    quad_decimate: float = 2.0
     quad_sigma: float = 0.0
     refine_edges: int = 1
-    decode_sharpening: float = 0.8
+    decode_sharpening: float = 0.25
 
 
 class CalibrationData(BaseModel):
