@@ -257,7 +257,13 @@ async def ws_handler(request):
                 )
 
             elif t == "get_instance":
-                await ws.send_json({"instance": args.instance, "master": args.master})
+                await ws.send_json(
+                    {
+                        "instance": args.instance,
+                        "master": args.master,
+                        "type": "instance",
+                    }
+                )
             elif t == "get_config":
                 await ws.send_json(make_config())
 

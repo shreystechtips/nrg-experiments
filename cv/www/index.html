@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>PhotonVision</title>
+    <title id="title">PhotonVision</title>
     <style>
       * {
         margin: 0;
@@ -123,7 +123,8 @@
       <!-- ========== CAMERA TAB ========== -->
       <div id="tab-camera" class="tab active">
         <div class="panel">
-          <h3>Camera</h3>
+          <h3 id="operating_as_master">LEADER STATE UNKNOWN</h3>
+          <h3 id="instance_name">Camera</h3>
           <label>Camera</label>
           <select id="cam_select"></select>
           <div id="cam_info" class="small"></div>
@@ -286,24 +287,26 @@
           </div>
           <button id="apply_nt">Apply</button>
           <h3>IP Config</h3>
-          <label>IP Suffix</label>
-          <div class="input-group">
-            <input
-              type="text"
-              id="ip_suffix"
-              placeholder="last octet of IP (10-254)"
-            />
-            <button class="reset-btn" data-field="ip_suffix">R</button>
-          </div>
-          <label>Human Name</label>
-          <div class="input-group">
-            <input
-              type="text"
-              id="mdns_name"
-              placeholder="like photonvision (ignore the .local)"
-            />
-            <button class="reset-btn" data-field="mdns_name">R</button>
-          </div>
+          <pp id="master_only_section">
+            <label>IP Suffix</label>
+            <div class="input-group">
+                <input
+                type="text"
+                id="ip_suffix"
+                placeholder="last octet of IP (10-254)"
+                />
+                <button class="reset-btn" data-field="ip_suffix">R</button>
+            </div>
+            <label>Human Name</label>
+            <div class="input-group">
+                <input
+                type="text"
+                id="mdns_name"
+                placeholder="like photonvision (ignore the .local)"
+                />
+                <button class="reset-btn" data-field="mdns_name">R</button>
+            </div>
+          </pp>
           <label>Network tables Camera Name</label>
           <div class="input-group">
             <input
@@ -344,6 +347,10 @@
     <script>
       const ws = new WebSocket(`ws://${location.host}/ws`);
       const els = {
+        operating_as_master: document.getElementById("operating_as_master"),
+        instance_name: document.getElementById("instance_name"),
+        master_only_section: document.getElementById("master_only_section"),
+        title: document.getElementById("title"),
         cam: document.getElementById("cam_select"),
         exp: document.getElementById("exp"),
         res_y: document.getElementById("res_y"),
@@ -438,10 +445,17 @@
       // --------------------------------------------------------------
       ws.onopen = () => {
         ws.send(JSON.stringify({ type: "get_cameras" }));
+        ws.send(JSON.stringify({ type: "get_instance" }));
       };
 
       ws.onmessage = (e) => {
         const msg = JSON.parse(e.data);
+        if (msg.type === "instance") {
+          els.title.textContent = `${msg.instance} - PyVision`;
+          els.instance_name.textContent = `Vision Instance: ${msg.instance}`;
+          els.operating_as_master.textContent = `IS MASTER INSTANCE: ${msg.master}`;
+          els.master_only_section.style.display = msg.master ? 'block' : 'none';
+        }
         if (msg.type === "cameras") {
           els.cam.innerHTML = msg.list
             .map(
