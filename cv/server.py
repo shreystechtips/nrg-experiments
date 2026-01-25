@@ -19,7 +19,7 @@ from calibration import compute_calibration, init_calib_board
 from camera import apply_camera_settings, discover_cameras, open_selected_camera
 from detector import init_detector, process_frame
 from model import DetectorState, NetworkState, SafeFile, UISettings, VisionSegment
-from network import nt_loop
+from network import send_one
 
 script_path = Path(__file__).parent
 
@@ -196,6 +196,7 @@ def video_loop():
         finally:
             camera_state.current_frame_raw = frame
             camera_state.sequence_id += 1
+        send_one(camera_state, nt_state)
 
 
 async def mjpeg_handler(request: web.Request):
@@ -397,10 +398,7 @@ async def main():
     site = web.TCPSite(runner, "0.0.0.0", args.port)
     await site.start()
     async_log.info("Server running on http://<ip>:%s" % args.port)
-
-    await nt_loop(camera_state, nt_state)
-    # threading.Thread(target=video_loop, daemon=True).start()
-    # await video_loop()
+    await asyncio.Event().wait()
 
 
 if __name__ == "__main__":
