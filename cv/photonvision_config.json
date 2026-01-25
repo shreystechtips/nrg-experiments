@@ -13,7 +13,7 @@
   },
   "pipeline": {
     "family": "tag36h11",
-    "nthreads": 4,
+    "nthreads": 8,
     "quad_decimate": 2.0,
     "quad_sigma": 0.0,
     "refine_edges": 1,
@@ -62,14 +62,14 @@
     "team_number": 948,
     "led_brightness": 0,
     "driver_mode": false,
-    "camera_name": "FrontLeftCamera",
+    "camera_name": "change_me",
     "ip_suffix": 22,
     "mdns_name": "default-cameras"
   },
   "calib_config": {
     "board_type": "Charuco",
     "tag_family": "DICT_4X4_1000",
-    "sq_len": 1,
+    "sq_len": 1.0,
     "marker_len": 0.75,
     "board_width_sq": 8,
     "board_height_sq": 8
