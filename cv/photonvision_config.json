@@ -1,9 +1,9 @@
 {
   "selected_camera": 1200,
   "camera_settings": {
-    "exposure": 12000,
-    "gain": 12,
-    "brightness": 50,
+    "exposure": 500,
+    "gain": 2,
+    "brightness": 2,
     "white_balance": 4600,
     "auto_exposure": true,
     "auto_white_balance": true,

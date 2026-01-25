@@ -4,7 +4,7 @@ Description=PhotonVision
 
 [Service]
 Type=simple
-ExecStart=uv run --project /app /app/server.py --instance "Instance 2" --port 8081 --config_file "/app/cv/photonvision_config2.json"
+ExecStart=/home/orangepi/.local/bin/uv run --project /app/cv /app/cv/server.py --instance "Instance 2" --port 8081 --config_file "/app/cv/photonvision_config2.json" --field-layout k2026RebuiltWelded
 Restart=on-failure
 
 [Install]
