@@ -17,7 +17,7 @@ from aiologger import Logger
 from aiologger.levels import LogLevel
 from robotpy_apriltag import AprilTagField, AprilTagFieldLayout
 
-from calibration import compute_calibration, init_calib_board
+from calibration import append_current_frame, compute_calibration, init_calib_board
 from camera import apply_camera_settings, discover_cameras, open_selected_camera
 from detector import init_detector, process_frame
 from model import DetectorState, NetworkState, SafeFile, UISettings, VisionSegment
@@ -79,6 +79,7 @@ parser.add_argument(
     ],
 )
 args = parser.parse_args()
+image_folder = script_path / Path("www") / Path(args.instance)
 
 CONFIG_FILE = SafeFile(
     args.config_file,
@@ -288,16 +289,19 @@ async def ws_handler(request):
                 )
             elif t == "get_config":
                 await ws.send_json(make_config())
-
+                await ws.send_json(
+                    {
+                        "type": "calib_status",
+                        "count": len(app_config.calib_config.calib_runtime.captures),
+                    }
+                )
             elif t == "select_camera":
                 idx = data.get("index", 0)
                 if any(c.index == idx for c in camera_state.available_cameras):
                     app_config.selected_camera = idx
                     open_selected_camera(app_config, camera_state)
                     apply_camera_settings(app_config, camera_state)
-                    _debounced_save()
                     await broadcast({"type": "camera_selected", "index": idx})
-
             elif t == "config":
                 app_config.camera_settings = app_config.camera_settings.model_copy(
                     update=data.get("camera_settings", {})
@@ -310,10 +314,6 @@ async def ws_handler(request):
                 )
                 detector_state.detector = init_detector(app_config.pipeline)
 
-            elif t == "calib_start":
-                # TODO: calibration routine
-                pass
-
             elif t == "calib_config":
                 app_config.calib_config = app_config.calib_config.model_copy(
                     update=data.get("config", {})
@@ -322,10 +322,10 @@ async def ws_handler(request):
 
             elif t == "calib_capture":
                 last_capture_time = None
-                is_new_data = lambda: (last_capture_time is None) or (
+                is_new_data = (last_capture_time is None) or (
                     last_capture_time != camera_state.last_capture_time
                 )
-                if not is_new_data():
+                if not is_new_data:
                     await ws.send_json(
                         {
                             "type": "calib_result",
@@ -333,15 +333,8 @@ async def ws_handler(request):
                         }
                     )
                 elif camera_state.current_frame_raw is not None:
-                    image_folder = script_path / Path("www") / Path(args.instance)
-                    os.makedirs(image_folder, exist_ok=True)
                     current_frame = camera_state.current_frame_raw.copy()
-                    cv2.imwrite(
-                        image_folder
-                        / f"{len(app_config.calib_config.calib_runtime.captures)}.png",
-                        current_frame,
-                    )
-                    app_config.calib_config.calib_runtime.captures.append(current_frame)
+                    append_current_frame(app_config, current_frame, image_folder)
                     await ws.send_json(
                         {
                             "type": "calib_status",
@@ -357,7 +350,6 @@ async def ws_handler(request):
 
             elif t == "calib_clear":
                 app_config.calib_config.calib_runtime.captures.clear()
-                image_folder = script_path / Path("www") / Path(args.instance)
                 if image_folder.exists():
                     shutil.rmtree(image_folder)
                 await ws.send_json({"type": "calib_status", "count": 0})
@@ -381,6 +373,13 @@ async def ws_handler(request):
                 # Force the networktable path to be updated
                 if camera_name_updated:
                     nt_state.update_camera_table(app_config.global_data.camera_name)
+                await ws.send_json(make_config())
+                await ws.send_json(
+                    {
+                        "type": "calib_status",
+                        "count": len(app_config.calib_config.calib_runtime.captures),
+                    }
+                )
             _debounced_save()
 
     finally:

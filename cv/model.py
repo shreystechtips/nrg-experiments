@@ -191,18 +191,13 @@ class SafeFile:
             self.save_func(data, f, **kwargs)
             f.flush()
             os.fsync(f.fileno())
-        # Copy the file.
-        # shutil.copy(self.tmp, self.path)
+        # Move the file.
         self.tmp.rename(self.path)
-        # os.rename(self.tmp, self.path)
         dir_fd = os.open(self.path.parent, os.O_RDONLY)
         try:
             os.fsync(dir_fd)
         finally:
             os.close(dir_fd)
-
-        # Delete the file.
-        # self.tmp.unlink()
 
     def load_file(self):
         # Check if the temp file still exists from an unclean reboot.

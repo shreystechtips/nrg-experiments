@@ -1,10 +1,13 @@
 import traceback
+from pathlib import Path
 
 import cv2
+import numpy as np
 from aiologger import Logger
 from aiologger.levels import LogLevel
+from pupil_apriltags.bindings import os
 
-from model import CalibConfig, CalibrationData
+from model import CalibConfig, CalibrationData, UISettings
 
 log = Logger.with_default_handlers(name="photonvision_calibration", level=LogLevel.INFO)
 
@@ -19,6 +22,18 @@ def init_calib_board(cfg: CalibConfig):
     )
     cfg.calib_runtime.calib_board = board
     return board
+
+
+def append_current_frame(
+    app_config: UISettings, captured_frame: np.ndarray, image_folder: Path
+):
+    current_frame = captured_frame.copy()
+    os.makedirs(image_folder, exist_ok=True)
+    cv2.imwrite(
+        image_folder / f"{len(app_config.calib_config.calib_runtime.captures)}.png",
+        current_frame,
+    )
+    app_config.calib_config.calib_runtime.captures.append(current_frame)
 
 
 def compute_calibration(app_config, logger: Logger):

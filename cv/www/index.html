@@ -245,7 +245,7 @@
         </div>
 
         <div class="panel">
-          <h3>Capture</h3>
+          <h3><a id="calib_frames"><u>Capture</u></a></h3>
           <button id="capture_frame">Capture Frame</button>
           <button id="clear_frames">Clear All</button>
           <div id="calib_count" class="small">Captured: 0</div>
@@ -334,6 +334,7 @@
         operating_as_master: document.getElementById("operating_as_master"),
         instance_name: document.getElementById("instance_name"),
         master_only_section: document.getElementById("master_only_section"),
+        calib_frames: document.getElementById("calib_frames"),
         title: document.getElementById("title"),
         cam: document.getElementById("cam_select"),
         exp: document.getElementById("exp"),
@@ -355,7 +356,6 @@
         ip_suffix: document.getElementById("ip_suffix"),
         mdns_name: document.getElementById("mdns_name"),
         camera_name: document.getElementById("camera_name"),
-        board_type: document.getElementById("board_type"),
         tag_family: document.getElementById("tag_family"),
         board_w: document.getElementById("board_w"),
         board_h: document.getElementById("board_h"),
@@ -364,7 +364,7 @@
         calib_count: document.getElementById("calib_count"),
         calib_result: document.getElementById("calib_result"),
       };
-
+      var instance ="";
       // --------------------------------------------------------------
       //  TAB SWITCHING
       // --------------------------------------------------------------
@@ -433,7 +433,9 @@
       ws.onmessage = (e) => {
         const msg = JSON.parse(e.data);
         if (msg.type === "instance") {
+          instance = msg.instance;
           els.title.textContent = `${msg.instance} - PyVision`;
+            // = `${msg.instance} - PyVision`;
           els.instance_name.textContent = `Vision Instance: ${msg.instance}`;
           els.operating_as_master.textContent = `IS MASTER INSTANCE: ${msg.master}`;
           els.field_type.textContent = `Field: ${msg.field_type}`;
@@ -452,6 +454,14 @@
         }
         if (msg.type === "calib_status") {
           els.calib_count.textContent = `Captured: ${msg.count}`;
+          if (msg.count > 0){
+            els.calib_frames.href= `/${instance}`;
+            els.calib_frames.target= `_blank`;
+            
+                // window.location.href = `/${instance}`;
+          } else {
+            els.calib_frames.removeAttribute("href");
+          }
         }
         if (msg.type === "calib_result") {
           els.calib_result.textContent = msg.return_value
