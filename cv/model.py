@@ -12,6 +12,7 @@ from photonlibpy.networktables.NTTopicSet import NTTopicSet
 from photonlibpy.targeting.multiTargetPNPResult import PnpResult
 from photonlibpy.targeting.photonTrackedTarget import PhotonTrackedTarget
 from pupil_apriltags import Detector
+from pupil_apriltags.bindings import os
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 log = logging.getLogger("photonvision_model")
@@ -188,11 +189,20 @@ class SafeFile:
         # Save file to temp location.
         with self.tmp.open("w") as f:
             self.save_func(data, f, **kwargs)
+            f.flush()
+            os.fsync(f.fileno())
         # Copy the file.
-        shutil.copy(self.tmp, self.path)
+        # shutil.copy(self.tmp, self.path)
+        self.tmp.rename(self.path)
+        # os.rename(self.tmp, self.path)
+        dir_fd = os.open(self.path.parent, os.O_RDONLY)
+        try:
+            os.fsync(dir_fd)
+        finally:
+            os.close(dir_fd)
 
         # Delete the file.
-        self.tmp.unlink()
+        # self.tmp.unlink()
 
     def load_file(self):
         # Check if the temp file still exists from an unclean reboot.

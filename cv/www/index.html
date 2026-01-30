@@ -217,24 +217,6 @@
       <div id="tab-calib" class="tab">
         <div class="panel">
           <h3>Calibration Board</h3>
-          <label>Board Type</label>
-          <div class="input-group">
-            <select id="board_type">
-              <option value="Charuco">Charuco</option>
-            </select>
-            <button class="reset-btn" data-field="calib_board">R</button>
-          </div>
-
-          <label>Tag Family</label>
-          <div class="input-group">
-            <select id="tag_family">
-              <option value="DICT_4X4_1000">4x4</option>
-              <option value="DICT_5X5_1000">5x5</option>
-              <option value="DICT_6X6_1000">6x6</option>
-            </select>
-            <button class="reset-btn" data-field="calib_board">R</button>
-          </div>
-
           <label>Board Width (squares)</label>
           <div class="input-group">
             <input type="number" id="board_w" min="3" value="8" />
@@ -428,8 +410,6 @@
         els.camera_name.value = cfg.global_data?.camera_name ?? "";
         els.ip_suffix.value = cfg.global_data?.ip_suffix ?? "";
 
-        els.board_type.value = cfg.calib_config?.board_type ?? "Charuco";
-        els.tag_family.value = cfg.calib_config?.tag_family ?? "DICT_4X4_1000";
         els.board_w.value = cfg.calib_config?.board_width_sq ?? 5;
         els.board_h.value = cfg.calib_config?.board_height_sq ?? 7;
         els.sq_len.value = cfg.calib_config?.sq_len ?? 0.0434;
@@ -474,9 +454,7 @@
           els.calib_count.textContent = `Captured: ${msg.count}`;
         }
         if (msg.type === "calib_result") {
-          els.calib_result.textContent = msg.success
-            ? "Calibration saved!"
-            : "Failed";
+          els.calib_result.textContent = msg.return_value
         }
       };
 
@@ -532,8 +510,6 @@
           JSON.stringify({
             type: "calib_config",
             config: {
-              board_type: els.board_type.value,
-              tag_family: els.tag_family.value,
               board_width_sq: parseInt(els.board_w.value),
               board_height_sq: parseInt(els.board_h.value),
               sq_len: parseFloat(els.sq_len.value),

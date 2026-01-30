@@ -3,6 +3,8 @@ import argparse
 import asyncio
 import json
 import logging
+import os
+import shutil
 import threading
 import time
 from pathlib import Path
@@ -319,10 +321,27 @@ async def ws_handler(request):
                 init_calib_board(app_config.calib_config)
 
             elif t == "calib_capture":
-                if camera_state.current_frame_raw is not None:
-                    app_config.calib_config.calib_runtime.captures.append(
-                        camera_state.current_frame_raw.copy()
+                last_capture_time = None
+                is_new_data = lambda: (last_capture_time is None) or (
+                    last_capture_time != camera_state.last_capture_time
+                )
+                if not is_new_data():
+                    await ws.send_json(
+                        {
+                            "type": "calib_result",
+                            "return_value": "Please wait, that capture was not successful",
+                        }
                     )
+                elif camera_state.current_frame_raw is not None:
+                    image_folder = script_path / Path("www") / Path(args.instance)
+                    os.makedirs(image_folder, exist_ok=True)
+                    current_frame = camera_state.current_frame_raw.copy()
+                    cv2.imwrite(
+                        image_folder
+                        / f"{len(app_config.calib_config.calib_runtime.captures)}.png",
+                        current_frame,
+                    )
+                    app_config.calib_config.calib_runtime.captures.append(current_frame)
                     await ws.send_json(
                         {
                             "type": "calib_status",
@@ -333,12 +352,16 @@ async def ws_handler(request):
                     )
 
             elif t == "calib_compute":
-                success = compute_calibration(app_config)
-                await ws.send_json({"type": "calib_result", "success": success})
+                success = compute_calibration(app_config, async_log)
+                await ws.send_json({"type": "calib_result", "return_value": success})
 
             elif t == "calib_clear":
                 app_config.calib_config.calib_runtime.captures.clear()
+                image_folder = script_path / Path("www") / Path(args.instance)
+                if image_folder.exists():
+                    shutil.rmtree(image_folder)
                 await ws.send_json({"type": "calib_status", "count": 0})
+                await ws.send_json({"type": "calib_result", "return_value": ""})
 
             elif t == "nt_server":
                 nt_state.nt_instance.setServerTeam(app_config.global_data.team_number)
