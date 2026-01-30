@@ -1,601 +1,660 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-  <head>
-    <meta charset="utf-8" />
-    <title id="title">PhotonVision</title>
-    <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-        font-family: Arial;
-      }
-      body {
-        display: flex;
-        height: 100vh;
-        background: #111;
-        color: #eee;
-      }
-      #sidebar {
-        width: 340px;
-        background: #1a1a1a;
-        padding: 15px;
-        overflow-y: auto;
-      }
-      .tab {
-        display: none;
-      }
-      .tab.active {
-        display: block;
-      }
-      .tab-btns {
-        display: flex;
-        margin-bottom: 10px;
-      }
-      .tab-btn {
-        flex: 1;
-        padding: 8px;
-        background: #333;
-        text-align: center;
-        cursor: pointer;
-      }
-      .tab-btn.active {
-        background: #4caf50;
-      }
-      .panel {
-        margin-bottom: 15px;
-        background: #222;
-        padding: 12px;
-        border-radius: 6px;
-      }
-      .panel h3 {
-        margin-bottom: 8px;
-        color: #4caf50;
-      }
-      label {
-        display: block;
-        margin: 6px 0 3px;
-        font-size: 0.9em;
-      }
-      input,
-      select {
-        width: 100%;
-        padding: 6px;
-        background: #333;
-        color: #fff;
-        border: 1px solid #444;
-        border-radius: 4px;
-      }
-      .input-group {
-        display: flex;
-        gap: 4px;
-      }
-      .input-group input,
-      .input-group select {
-        flex: 1;
-      }
-      button {
-        margin-top: 6px;
-        padding: 6px;
-        width: 100%;
-        background: #4caf50;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-      }
-      button:hover {
-        background: #45a049;
-      }
-      .reset-btn {
-        background: #d32f2f !important;
-        width: 40px;
-        font-weight: bold;
-        font-size: 0.8em;
-      }
-      .reset-btn:hover {
-        background: #b71c1c !important;
-      }
-      #stream {
-        flex: 1;
-        background: #000;
-        position: relative;
-      }
-      #stream img {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-      }
-      .small {
-        font-size: 0.8em;
-        color: #aaa;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="sidebar">
-      <div class="tab-btns">
-        <div class="tab-btn active" data-tab="camera">Camera</div>
-        <div class="tab-btn" data-tab="calib">Calibration</div>
-        <div class="tab-btn" data-tab="settings">Settings</div>
-      </div>
-
-      <!-- ========== CAMERA TAB ========== -->
-      <div id="tab-camera" class="tab active">
-        <div class="panel">
-          <h3 id="operating_as_master">LEADER STATE UNKNOWN</h3>
-          <h3 id="instance_name">Camera</h3>
-          <label>Camera</label>
-          <select id="cam_select"></select>
-          <div id="cam_info" class="small"></div>
-        </div>
-
-        <div class="panel">
-          <h3>Camera Settings</h3>
-          <label>Res X</label>
-          <div class="input-group">
-            <input type="number" id="res_x" step="100" />
-            <button class="reset-btn" data-field="camera">R</button>
-          </div>
-          <label>Res Y</label>
-          <div class="input-group">
-            <input type="number" id="res_y" step="100" />
-            <button class="reset-btn" data-field="camera">R</button>
-          </div>
-          <label>Exposure (μs)</label>
-          <div class="input-group">
-            <input type="number" id="exp" step="100" />
-            <button class="reset-btn" data-field="camera">R</button>
-          </div>
-
-          <label>Gain</label>
-          <div class="input-group">
-            <input type="number" id="gain" step="1" />
-            <button class="reset-btn" data-field="camera">R</button>
-          </div>
-
-          <label>Brightness</label>
-          <div class="input-group">
-            <input type="number" id="bright" step="1" />
-            <button class="reset-btn" data-field="camera">R</button>
-          </div>
-
-          <label>White Balance</label>
-          <div class="input-group">
-            <input type="number" id="wb" step="50" />
-            <button class="reset-btn" data-field="camera">R</button>
-          </div>
-
-          <label><input type="checkbox" id="auto_exp" /> Auto Exposure</label>
-          <label><input type="checkbox" id="auto_wb" /> Auto WB</label>
-          <button id="apply_cam">Apply</button>
-        </div>
-
-        <div class="panel">
-          <h3>Localization</h3>
-          <label>Tag Size (m)</label>
-          <div class="input-group">
-            <input
-              type="number"
-              id="tag_size"
-              step="0.001"
-              min="0.01"
-              max="1"
-            />
-            <button class="reset-btn" data-field="tag_size_m">R</button>
-          </div>
-
-          <label>Robot Offset X (m)</label>
-          <div class="input-group">
-            <input type="number" id="off_x" step="0.01" />
-            <button class="reset-btn" data-field="robot_offset">R</button>
-          </div>
-
-          <label>Robot Offset Y (m)</label>
-          <div class="input-group">
-            <input type="number" id="off_y" step="0.01" />
-            <button class="reset-btn" data-field="robot_offset">R</button>
-          </div>
-
-          <label>Robot Offset Z (m)</label>
-          <div class="input-group">
-            <input type="number" id="off_z" step="0.01" />
-            <button class="reset-btn" data-field="robot_offset">R</button>
-          </div>
-
-          <label>Robot Yaw (deg)</label>
-          <div class="input-group">
-            <input type="number" id="off_yaw" step="1" />
-            <button class="reset-btn" data-field="robot_offset">R</button>
-          </div>
-
-          <button id="apply_offset">Apply</button>
-        </div>
-      </div>
-
-      <!-- ========== CALIBRATION TAB ========== -->
-      <div id="tab-calib" class="tab">
-        <div class="panel">
-          <h3>Calibration Board</h3>
-          <label>Board Width (squares)</label>
-          <div class="input-group">
-            <input type="number" id="board_w" min="3" value="8" />
-            <button class="reset-btn" data-field="calib_board">R</button>
-          </div>
-
-          <label>Board Height (squares)</label>
-          <div class="input-group">
-            <input type="number" id="board_h" min="3" value="8" />
-            <button class="reset-btn" data-field="calib_board">R</button>
-          </div>
-
-          <label>Marker Square Length (in)</label>
-          <div class="input-group">
-            <input type="number" id="sq_len" step="0.1" value="1.0" />
-            <button class="reset-btn" data-field="calib_board">R</button>
-          </div>
-
-          <label>Marker Length (in)</label>
-          <div class="input-group">
-            <input type="number" id="marker_len" step="0.1" value="0.75" />
-            <button class="reset-btn" data-field="calib_board">R</button>
-          </div>
-
-          <button id="save_board">Save Board</button>
-        </div>
-
-        <div class="panel">
-          <h3><a id="calib_frames"><u>Capture</u></a></h3>
-          <button id="capture_frame">Capture Frame</button>
-          <button id="clear_frames">Clear All</button>
-          <div id="calib_count" class="small">Captured: 0</div>
-          <button id="compute_calib">Compute Calibration</button>
-          <div id="calib_result" class="small"></div>
-        </div>
-      </div>
-
-      <!-- ========== SETTINGS TAB ========== -->
-      <div id="tab-settings" class="tab">
-        <h2 id="field_type">FIELD TYPE UNKNOWN</h2>
-        <div class="panel">
-          <h3>NetworkTables</h3>
-          <label>NT Server Address (optional)</label>
-          <div class="input-group">
-            <input
-              type="text"
-              id="nt_server"
-              placeholder="roboRIO-XXXX-frc.local or 10.TE.AM.2"
-            />
-            <button class="reset-btn" data-field="nt_server">R</button>
-          </div>
-          <button id="apply_nt">Apply</button>
-          <h3>IP Config</h3>
-          <pp id="master_only_section">
-            <label>IP Suffix</label>
-            <div class="input-group">
-                <input
-                type="text"
-                id="ip_suffix"
-                placeholder="last octet of IP (10-254)"
-                />
-                <button class="reset-btn" data-field="ip_suffix">R</button>
-            </div>
-            <label>Human Name</label>
-            <div class="input-group">
-                <input
-                type="text"
-                id="mdns_name"
-                placeholder="like photonvision (ignore the .local)"
-                />
-                <button class="reset-btn" data-field="mdns_name">R</button>
-            </div>
-          </pp>
-          <label>Network tables Camera Name</label>
-          <div class="input-group">
-            <input
-              type="text"
-              id="camera_name"
-              placeholder="for nt robot code reading"
-            />
-            <button class="reset-btn" data-field="camera_name">R</button>
-          </div>
-          <button id="apply_network">Apply</button>
-        </div>
-
-        <div class="panel">
-          <h3>General</h3>
-          <label>Team Number</label>
-          <div class="input-group">
-            <input type="number" id="team" />
-            <button class="reset-btn" data-field="team_number">R</button>
-          </div>
-
-          <label><input type="checkbox" id="driver_mode" /> Driver Mode</label>
-          <div class="*input-group">
-            <div style="flex: 1"></div>
-            <button class="reset-btn" data-field="driver_mode">R</button>
-          </div>
-
-          <button id="reset_defaults" class="reset-btn" data-field="">
-            Reset All
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div id="stream">
-      <img id="video" src="/stream" />
-    </div>
-
-    <script>
-      const ws = new WebSocket(`ws://${location.host}/ws`);
-      const els = {
-        field_type: document.getElementById("field_type"),
-        operating_as_master: document.getElementById("operating_as_master"),
-        instance_name: document.getElementById("instance_name"),
-        master_only_section: document.getElementById("master_only_section"),
-        calib_frames: document.getElementById("calib_frames"),
-        title: document.getElementById("title"),
-        cam: document.getElementById("cam_select"),
-        exp: document.getElementById("exp"),
-        res_y: document.getElementById("res_y"),
-        res_x: document.getElementById("res_x"),
-        gain: document.getElementById("gain"),
-        bright: document.getElementById("bright"),
-        wb: document.getElementById("wb"),
-        auto_exp: document.getElementById("auto_exp"),
-        auto_wb: document.getElementById("auto_wb"),
-        tag_size: document.getElementById("tag_size"),
-        off_x: document.getElementById("off_x"),
-        off_y: document.getElementById("off_y"),
-        off_z: document.getElementById("off_z"),
-        off_yaw: document.getElementById("off_yaw"),
-        team: document.getElementById("team"),
-        driver_mode: document.getElementById("driver_mode"),
-        nt_server: document.getElementById("nt_server"),
-        ip_suffix: document.getElementById("ip_suffix"),
-        mdns_name: document.getElementById("mdns_name"),
-        camera_name: document.getElementById("camera_name"),
-        tag_family: document.getElementById("tag_family"),
-        board_w: document.getElementById("board_w"),
-        board_h: document.getElementById("board_h"),
-        sq_len: document.getElementById("sq_len"),
-        marker_len: document.getElementById("marker_len"),
-        calib_count: document.getElementById("calib_count"),
-        calib_result: document.getElementById("calib_result"),
-      };
-      var instance ="";
-      // --------------------------------------------------------------
-      //  TAB SWITCHING
-      // --------------------------------------------------------------
-      document.querySelectorAll(".tab-btn").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          document
-            .querySelectorAll(".tab-btn")
-            .forEach((b) => b.classList.remove("active"));
-          document
-            .querySelectorAll(".tab")
-            .forEach((t) => t.classList.remove("active"));
-          btn.classList.add("active");
-          document
-            .getElementById("tab-" + btn.dataset.tab)
-            .classList.add("active");
-        });
-      });
-
-      // --------------------------------------------------------------
-      //  Fill UI from config
-      // --------------------------------------------------------------
-      function applyConfig(cfg) {
-        console.log(cfg);
-        els.res_x.value = cfg.camera_settings?.res_x ?? -1;
-        els.res_y.value = cfg.camera_settings?.res_y ?? -1;
-        els.exp.value = cfg.camera_settings?.exposure ?? 12000;
-        els.gain.value = cfg.camera_settings?.gain ?? 12;
-        els.bright.value = cfg.camera_settings?.brightness ?? 50;
-        els.wb.value = cfg.camera_settings?.white_balance ?? 4600;
-        els.auto_exp.checked = cfg.camera_settings?.auto_exposure ?? false;
-        els.auto_wb.checked = cfg.camera_settings?.auto_white_balance ?? true;
-
-        els.tag_size.value = cfg.global_data?.tag_size_m ?? 0.1524;
-        els.off_x.value = cfg.robot_offset?.tx ?? 0;
-        els.off_y.value = cfg.robot_offset?.ty ?? 0;
-        els.off_z.value = cfg.robot_offset?.tz ?? 0;
-        els.off_yaw.value = cfg.robot_offset?.yaw ?? 0;
-
-        els.team.value = cfg.global_data?.team_number ?? 0;
-        els.driver_mode.checked = cfg.global_data?.driver_mode ?? false;
-        els.nt_server.value = cfg.global_data?.nt_server ?? "";
-        els.mdns_name.value = cfg.global_data?.mdns_name ?? "";
-        els.camera_name.value = cfg.global_data?.camera_name ?? "";
-        els.ip_suffix.value = cfg.global_data?.ip_suffix ?? "";
-
-        els.board_w.value = cfg.calib_config?.board_width_sq ?? 5;
-        els.board_h.value = cfg.calib_config?.board_height_sq ?? 7;
-        els.sq_len.value = cfg.calib_config?.sq_len ?? 0.0434;
-        els.marker_len.value = cfg.calib_config?.marker_len ?? 0.015;
-
-        if (cfg.selected_camera !== undefined && els.cam.children.length > 0) {
-          els.cam.value = cfg.selected_camera;
-        }
-
-        document.getElementById("video").src = "/stream";
-      }
-
-      // --------------------------------------------------------------
-      //  WebSocket
-      // --------------------------------------------------------------
-      ws.onopen = () => {
-        ws.send(JSON.stringify({ type: "get_cameras" }));
-        ws.send(JSON.stringify({ type: "get_instance" }));
-      };
-
-      ws.onmessage = (e) => {
-        const msg = JSON.parse(e.data);
-        if (msg.type === "instance") {
-          instance = msg.instance;
-          els.title.textContent = `${msg.instance} - PyVision`;
-            // = `${msg.instance} - PyVision`;
-          els.instance_name.textContent = `Vision Instance: ${msg.instance}`;
-          els.operating_as_master.textContent = `IS MASTER INSTANCE: ${msg.master}`;
-          els.field_type.textContent = `Field: ${msg.field_type}`;
-          els.master_only_section.style.display = msg.master ? 'block' : 'none';
-        }
-        if (msg.type === "cameras") {
-          els.cam.innerHTML = msg.list
-            .map(
-              (c) => `<option value="${c.index}">${c.name} – ${c.res}</option>`
-            )
-            .join("");
-          ws.send(JSON.stringify({ type: "get_config" }));
-        }
-        if (msg.type === "config") {
-          applyConfig(msg);
-        }
-        if (msg.type === "calib_status") {
-          els.calib_count.textContent = `Captured: ${msg.count}`;
-          if (msg.count > 0){
-            els.calib_frames.href= `/${instance}`;
-            els.calib_frames.target= `_blank`;
-            
-                // window.location.href = `/${instance}`;
-          } else {
-            els.calib_frames.removeAttribute("href");
-          }
-        }
-        if (msg.type === "calib_result") {
-          els.calib_result.textContent = msg.return_value
-        }
-      };
-
-      // --------------------------------------------------------------
-      //  UI → Backend
-      // --------------------------------------------------------------
-      els.cam.addEventListener("change", () => {
-        ws.send(
-          JSON.stringify({
-            type: "select_camera",
-            index: parseInt(els.cam.value),
-          })
-        );
-      });
-
-      document.getElementById("apply_cam").onclick = () => {
-        ws.send(
-          JSON.stringify({
-            type: "config",
-            camera_settings: {
-              res_x: parseInt(els.res_x.value),
-              res_y: parseInt(els.res_y.value),
-              exposure: parseInt(els.exp.value),
-              gain: parseInt(els.gain.value),
-              brightness: parseInt(els.bright.value),
-              white_balance: parseInt(els.wb.value),
-              auto_exposure: els.auto_exp.checked,
-              auto_white_balance: els.auto_wb.checked,
-            },
-          })
-        );
-      };
-
-      document.getElementById("apply_offset").onclick = () => {
-        ws.send(
-          JSON.stringify({
-            type: "global",
-            global: {
-              tag_size_m: parseFloat(els.tag_size.value),
-              robot_offset: {
-                tx: parseFloat(els.off_x.value),
-                ty: parseFloat(els.off_y.value),
-                tz: parseFloat(els.off_z.value),
-                yaw: parseFloat(els.off_yaw.value),
-              },
-            },
-          })
-        );
-      };
-
-      document.getElementById("save_board").onclick = () => {
-        ws.send(
-          JSON.stringify({
-            type: "calib_config",
-            config: {
-              board_width_sq: parseInt(els.board_w.value),
-              board_height_sq: parseInt(els.board_h.value),
-              sq_len: parseFloat(els.sq_len.value),
-              marker_len: parseFloat(els.marker_len.value),
-            },
-          })
-        );
-      };
-
-      document.getElementById("apply_nt").onclick = () => {
-        ws.send(
-          JSON.stringify({
-            type: "nt_server",
-            address: els.nt_server.value.trim(),
-          })
-        );
-      };
-
-      document.getElementById("apply_network").onclick = () => {
-        ws.send(
-          JSON.stringify({
-            type: "global",
-            global:{
-              ip_suffix: parseInt(els.ip_suffix.value.trim()),
-              mdns_name: els.mdns_name.value.trim(),
-              camera_name: els.camera_name.value.trim()
+    <head>
+        <meta charset="utf-8" />
+        <title id="title">PhotonVision</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+                font-family: Arial;
             }
-          })
-        );
-      };
+            body {
+                display: flex;
+                height: 100vh;
+                background: #111;
+                color: #eee;
+            }
+            #sidebar {
+                width: 340px;
+                background: #1a1a1a;
+                padding: 15px;
+                overflow-y: auto;
+            }
+            .tab {
+                display: none;
+            }
+            .tab.active {
+                display: block;
+            }
+            .tab-btns {
+                display: flex;
+                margin-bottom: 10px;
+            }
+            .tab-btn {
+                flex: 1;
+                padding: 8px;
+                background: #333;
+                text-align: center;
+                cursor: pointer;
+            }
+            .tab-btn.active {
+                background: #4caf50;
+            }
+            .panel {
+                margin-bottom: 15px;
+                background: #222;
+                padding: 12px;
+                border-radius: 6px;
+            }
+            .panel h3 {
+                margin-bottom: 8px;
+                color: #4caf50;
+            }
+            label {
+                display: block;
+                margin: 6px 0 3px;
+                font-size: 0.9em;
+            }
+            input,
+            select {
+                width: 100%;
+                padding: 6px;
+                background: #333;
+                color: #fff;
+                border: 1px solid #444;
+                border-radius: 4px;
+            }
+            .input-group {
+                display: flex;
+                gap: 4px;
+            }
+            .input-group input,
+            .input-group select {
+                flex: 1;
+            }
+            button {
+                margin-top: 6px;
+                padding: 6px;
+                width: 100%;
+                background: #4caf50;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+            }
+            button:hover {
+                background: #45a049;
+            }
+            .reset-btn {
+                background: #d32f2f !important;
+                width: 40px;
+                font-weight: bold;
+                font-size: 0.8em;
+            }
+            .reset-btn:hover {
+                background: #b71c1c !important;
+            }
+            #stream {
+                flex: 1;
+                background: #000;
+                position: relative;
+            }
+            #stream img {
+                width: 100%;
+                height: 100%;
+                object-fit: contain;
+            }
+            .small {
+                font-size: 0.8em;
+                color: #aaa;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="sidebar">
+            <div class="tab-btns">
+                <div class="tab-btn active" data-tab="camera">Camera</div>
+                <div class="tab-btn" data-tab="calib">Calibration</div>
+                <div class="tab-btn" data-tab="settings">Settings</div>
+            </div>
 
-      els.team.onchange = () => {
-        ws.send(
-          JSON.stringify({
-            type: "global",
-            global: { team_number: parseInt(els.team.value) },
-          })
-        );
-      };
+            <!-- ========== CAMERA TAB ========== -->
+            <div id="tab-camera" class="tab active">
+                <div class="panel">
+                    <h3 id="operating_as_master">LEADER STATE UNKNOWN</h3>
+                    <h3 id="instance_name">Camera</h3>
+                    <label>Camera</label>
+                    <select id="cam_select"></select>
+                    <div id="cam_info" class="small"></div>
+                </div>
 
-      els.driver_mode.onchange = () => {
-        ws.send(
-          JSON.stringify({
-            type: "global",
-            global: { driver_mode: els.driver_mode.checked },
-          })
-        );
-        document.getElementById("video").src = "/stream";
-      };
+                <div class="panel">
+                    <h3>Camera Settings</h3>
+                    <label>Res X</label>
+                    <div class="input-group">
+                        <input type="number" id="res_x" step="100" />
+                        <button class="reset-btn" data-field="camera">R</button>
+                    </div>
+                    <label>Res Y</label>
+                    <div class="input-group">
+                        <input type="number" id="res_y" step="100" />
+                        <button class="reset-btn" data-field="camera">R</button>
+                    </div>
+                    <label>Exposure (μs)</label>
+                    <div class="input-group">
+                        <input type="number" id="exp" step="100" />
+                        <button class="reset-btn" data-field="camera">R</button>
+                    </div>
 
-      document.getElementById("capture_frame").onclick = () =>
-        ws.send(JSON.stringify({ type: "calib_capture" }));
-      document.getElementById("clear_frames").onclick = () =>
-        ws.send(JSON.stringify({ type: "calib_clear" }));
-      document.getElementById("compute_calib").onclick = () =>
-        ws.send(JSON.stringify({ type: "calib_compute" }));
+                    <label>Gain</label>
+                    <div class="input-group">
+                        <input type="number" id="gain" step="1" />
+                        <button class="reset-btn" data-field="camera">R</button>
+                    </div>
 
-      // --------------------------------------------------------------
-      //  Reset buttons (per-field + global)
-      // --------------------------------------------------------------
-      document.querySelectorAll(".reset-btn").forEach((btn) => {
-        btn.onclick = () => {
-          const field = btn.dataset.field;
-          const msg = field
-            ? `Reset "${field}" to default?`
-            : `Reset ALL settings to defaults?`;
-          if (confirm(msg)) {
-            ws.send(
-              JSON.stringify({
-                type: "reset",
-                field: field || null,
-              })
-            );
-          }
-        };
-      });
-    </script>
-  </body>
+                    <label>Brightness</label>
+                    <div class="input-group">
+                        <input type="number" id="bright" step="1" />
+                        <button class="reset-btn" data-field="camera">R</button>
+                    </div>
+
+                    <label>White Balance</label>
+                    <div class="input-group">
+                        <input type="number" id="wb" step="50" />
+                        <button class="reset-btn" data-field="camera">R</button>
+                    </div>
+
+                    <label
+                        ><input type="checkbox" id="auto_exp" /> Auto
+                        Exposure</label
+                    >
+                    <label
+                        ><input type="checkbox" id="auto_wb" /> Auto WB</label
+                    >
+                    <button id="apply_cam">Apply</button>
+                </div>
+
+                <div class="panel">
+                    <h3>Localization</h3>
+                    <label>Tag Size (m)</label>
+                    <div class="input-group">
+                        <input
+                            type="number"
+                            id="tag_size"
+                            step="0.001"
+                            min="0.01"
+                            max="1"
+                        />
+                        <button class="reset-btn" data-field="tag_size_m">
+                            R
+                        </button>
+                    </div>
+
+                    <label>Robot Offset X (m)</label>
+                    <div class="input-group">
+                        <input type="number" id="off_x" step="0.01" />
+                        <button class="reset-btn" data-field="robot_offset">
+                            R
+                        </button>
+                    </div>
+
+                    <label>Robot Offset Y (m)</label>
+                    <div class="input-group">
+                        <input type="number" id="off_y" step="0.01" />
+                        <button class="reset-btn" data-field="robot_offset">
+                            R
+                        </button>
+                    </div>
+
+                    <label>Robot Offset Z (m)</label>
+                    <div class="input-group">
+                        <input type="number" id="off_z" step="0.01" />
+                        <button class="reset-btn" data-field="robot_offset">
+                            R
+                        </button>
+                    </div>
+
+                    <label>Robot Yaw (deg)</label>
+                    <div class="input-group">
+                        <input type="number" id="off_yaw" step="1" />
+                        <button class="reset-btn" data-field="robot_offset">
+                            R
+                        </button>
+                    </div>
+
+                    <button id="apply_offset">Apply</button>
+                </div>
+            </div>
+
+            <!-- ========== CALIBRATION TAB ========== -->
+            <div id="tab-calib" class="tab">
+                <div class="panel">
+                    <h3>Calibration Board</h3>
+                    <label>Board Width (squares)</label>
+                    <div class="input-group">
+                        <input type="number" id="board_w" min="3" value="8" />
+                        <button class="reset-btn" data-field="calib_board">
+                            R
+                        </button>
+                    </div>
+
+                    <label>Board Height (squares)</label>
+                    <div class="input-group">
+                        <input type="number" id="board_h" min="3" value="8" />
+                        <button class="reset-btn" data-field="calib_board">
+                            R
+                        </button>
+                    </div>
+
+                    <label>Marker Square Length (in)</label>
+                    <div class="input-group">
+                        <input
+                            type="number"
+                            id="sq_len"
+                            step="0.1"
+                            value="1.0"
+                        />
+                        <button class="reset-btn" data-field="calib_board">
+                            R
+                        </button>
+                    </div>
+
+                    <label>Marker Length (in)</label>
+                    <div class="input-group">
+                        <input
+                            type="number"
+                            id="marker_len"
+                            step="0.1"
+                            value="0.75"
+                        />
+                        <button class="reset-btn" data-field="calib_board">
+                            R
+                        </button>
+                    </div>
+
+                    <button id="save_board">Save Board</button>
+                </div>
+
+                <div class="panel">
+                    <h3>
+                        <a id="calib_frames"><u>Capture</u></a>
+                    </h3>
+                    <button id="capture_frame">Capture Frame</button>
+                    <button id="clear_frames">Clear All</button>
+                    <div id="calib_count" class="small">Captured: 0</div>
+                    <button id="compute_calib">Compute Calibration</button>
+                    <div id="calib_result" class="small"></div>
+                </div>
+            </div>
+
+            <!-- ========== SETTINGS TAB ========== -->
+            <div id="tab-settings" class="tab">
+                <h2 id="field_type">FIELD TYPE UNKNOWN</h2>
+                <div class="panel">
+                    <h3>NetworkTables</h3>
+                    <label>NT Server Address (optional)</label>
+                    <div class="input-group">
+                        <input
+                            type="text"
+                            id="nt_server"
+                            placeholder="roboRIO-XXXX-frc.local or 10.TE.AM.2"
+                        />
+                        <button class="reset-btn" data-field="nt_server">
+                            R
+                        </button>
+                    </div>
+                    <button id="apply_nt">Apply</button>
+                    <h3>IP Config</h3>
+                    <pp id="master_only_section">
+                        <label>IP Suffix</label>
+                        <div class="input-group">
+                            <input
+                                type="text"
+                                id="ip_suffix"
+                                placeholder="last octet of IP (10-254)"
+                            />
+                            <button class="reset-btn" data-field="ip_suffix">
+                                R
+                            </button>
+                        </div>
+                        <label>Human Name</label>
+                        <div class="input-group">
+                            <input
+                                type="text"
+                                id="mdns_name"
+                                placeholder="like photonvision (ignore the .local)"
+                            />
+                            <button class="reset-btn" data-field="mdns_name">
+                                R
+                            </button>
+                        </div>
+                    </pp>
+                    <label>Network tables Camera Name</label>
+                    <div class="input-group">
+                        <input
+                            type="text"
+                            id="camera_name"
+                            placeholder="for nt robot code reading"
+                        />
+                        <button class="reset-btn" data-field="camera_name">
+                            R
+                        </button>
+                    </div>
+                    <button id="apply_network">Apply</button>
+                </div>
+
+                <div class="panel">
+                    <h3>General</h3>
+                    <label>Team Number</label>
+                    <div class="input-group">
+                        <input type="number" id="team" />
+                        <button class="reset-btn" data-field="team_number">
+                            R
+                        </button>
+                    </div>
+
+                    <label
+                        ><input type="checkbox" id="driver_mode" /> Driver
+                        Mode</label
+                    >
+                    <div class="*input-group">
+                        <div style="flex: 1"></div>
+                        <button class="reset-btn" data-field="driver_mode">
+                            R
+                        </button>
+                    </div>
+
+                    <button id="reset_defaults" class="reset-btn" data-field="">
+                        Reset All
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="stream">
+            <img id="video" src="/stream" />
+        </div>
+
+        <script>
+            const ws = new WebSocket(`ws://${location.host}/ws`);
+            const els = {
+                field_type: document.getElementById("field_type"),
+                operating_as_master: document.getElementById(
+                    "operating_as_master",
+                ),
+                instance_name: document.getElementById("instance_name"),
+                master_only_section: document.getElementById(
+                    "master_only_section",
+                ),
+                calib_frames: document.getElementById("calib_frames"),
+                title: document.getElementById("title"),
+                cam: document.getElementById("cam_select"),
+                exp: document.getElementById("exp"),
+                res_y: document.getElementById("res_y"),
+                res_x: document.getElementById("res_x"),
+                gain: document.getElementById("gain"),
+                bright: document.getElementById("bright"),
+                wb: document.getElementById("wb"),
+                auto_exp: document.getElementById("auto_exp"),
+                auto_wb: document.getElementById("auto_wb"),
+                tag_size: document.getElementById("tag_size"),
+                off_x: document.getElementById("off_x"),
+                off_y: document.getElementById("off_y"),
+                off_z: document.getElementById("off_z"),
+                off_yaw: document.getElementById("off_yaw"),
+                team: document.getElementById("team"),
+                driver_mode: document.getElementById("driver_mode"),
+                nt_server: document.getElementById("nt_server"),
+                ip_suffix: document.getElementById("ip_suffix"),
+                mdns_name: document.getElementById("mdns_name"),
+                camera_name: document.getElementById("camera_name"),
+                tag_family: document.getElementById("tag_family"),
+                board_w: document.getElementById("board_w"),
+                board_h: document.getElementById("board_h"),
+                sq_len: document.getElementById("sq_len"),
+                marker_len: document.getElementById("marker_len"),
+                calib_count: document.getElementById("calib_count"),
+                calib_result: document.getElementById("calib_result"),
+            };
+            var instance = "";
+            // --------------------------------------------------------------
+            //  TAB SWITCHING
+            // --------------------------------------------------------------
+            document.querySelectorAll(".tab-btn").forEach((btn) => {
+                btn.addEventListener("click", () => {
+                    document
+                        .querySelectorAll(".tab-btn")
+                        .forEach((b) => b.classList.remove("active"));
+                    document
+                        .querySelectorAll(".tab")
+                        .forEach((t) => t.classList.remove("active"));
+                    btn.classList.add("active");
+                    document
+                        .getElementById("tab-" + btn.dataset.tab)
+                        .classList.add("active");
+                });
+            });
+
+            // --------------------------------------------------------------
+            //  Fill UI from config
+            // --------------------------------------------------------------
+            function applyConfig(cfg) {
+                console.log(cfg);
+                els.res_x.value = cfg.camera_settings?.res_x ?? -1;
+                els.res_y.value = cfg.camera_settings?.res_y ?? -1;
+                els.exp.value = cfg.camera_settings?.exposure ?? 12000;
+                els.gain.value = cfg.camera_settings?.gain ?? 12;
+                els.bright.value = cfg.camera_settings?.brightness ?? 50;
+                els.wb.value = cfg.camera_settings?.white_balance ?? 4600;
+                els.auto_exp.checked =
+                    cfg.camera_settings?.auto_exposure ?? false;
+                els.auto_wb.checked =
+                    cfg.camera_settings?.auto_white_balance ?? true;
+
+                els.tag_size.value = cfg.global_data?.tag_size_m ?? 0.1524;
+                els.off_x.value = cfg.robot_offset?.tx ?? 0;
+                els.off_y.value = cfg.robot_offset?.ty ?? 0;
+                els.off_z.value = cfg.robot_offset?.tz ?? 0;
+                els.off_yaw.value = cfg.robot_offset?.yaw ?? 0;
+
+                els.team.value = cfg.global_data?.team_number ?? 0;
+                els.driver_mode.checked = cfg.global_data?.driver_mode ?? false;
+                els.nt_server.value = cfg.global_data?.nt_server ?? "";
+                els.mdns_name.value = cfg.global_data?.mdns_name ?? "";
+                els.camera_name.value = cfg.global_data?.camera_name ?? "";
+                els.ip_suffix.value = cfg.global_data?.ip_suffix ?? "";
+
+                els.board_w.value = cfg.calib_config?.board_width_sq ?? 5;
+                els.board_h.value = cfg.calib_config?.board_height_sq ?? 7;
+                els.sq_len.value = cfg.calib_config?.sq_len ?? 0.0434;
+                els.marker_len.value = cfg.calib_config?.marker_len ?? 0.015;
+
+                if (
+                    cfg.selected_camera !== undefined &&
+                    els.cam.children.length > 0
+                ) {
+                    els.cam.value = cfg.selected_camera;
+                }
+
+                document.getElementById("video").src = "/stream";
+            }
+
+            // --------------------------------------------------------------
+            //  WebSocket
+            // --------------------------------------------------------------
+            ws.onopen = () => {
+                ws.send(JSON.stringify({ type: "get_cameras" }));
+                ws.send(JSON.stringify({ type: "get_instance" }));
+            };
+
+            ws.onmessage = (e) => {
+                const msg = JSON.parse(e.data);
+                if (msg.type === "instance") {
+                    instance = msg.instance;
+                    els.title.textContent = `${msg.instance} - PyVision`;
+                    els.instance_name.textContent = `Vision Instance: ${msg.instance}`;
+                    els.operating_as_master.textContent = `IS MASTER INSTANCE: ${msg.master}`;
+                    els.field_type.textContent = `Field: ${msg.field_type}`;
+                    els.master_only_section.style.display = msg.master
+                        ? "block"
+                        : "none";
+                }
+                if (msg.type === "cameras") {
+                    els.cam.innerHTML = msg.list
+                        .map(
+                            (c) =>
+                                `<option value="${c.index}">${c.name} – ${c.res}</option>`,
+                        )
+                        .join("");
+                    ws.send(JSON.stringify({ type: "get_config" }));
+                }
+                if (msg.type === "config") {
+                    applyConfig(msg);
+                }
+                if (msg.type === "calib_status") {
+                    els.calib_count.textContent = `Captured: ${msg.count}`;
+                    if (msg.count > 0) {
+                        els.calib_frames.href = `/${instance}`;
+                        els.calib_frames.target = `_blank`;
+                    } else {
+                        els.calib_frames.removeAttribute("href");
+                    }
+                }
+                if (msg.type === "calib_result") {
+                    els.calib_result.textContent = msg.return_value;
+                }
+            };
+
+            // --------------------------------------------------------------
+            //  UI → Backend
+            // --------------------------------------------------------------
+            els.cam.addEventListener("change", () => {
+                ws.send(
+                    JSON.stringify({
+                        type: "select_camera",
+                        index: parseInt(els.cam.value),
+                    }),
+                );
+            });
+
+            document.getElementById("apply_cam").onclick = () => {
+                ws.send(
+                    JSON.stringify({
+                        type: "config",
+                        camera_settings: {
+                            res_x: parseInt(els.res_x.value),
+                            res_y: parseInt(els.res_y.value),
+                            exposure: parseInt(els.exp.value),
+                            gain: parseInt(els.gain.value),
+                            brightness: parseInt(els.bright.value),
+                            white_balance: parseInt(els.wb.value),
+                            auto_exposure: els.auto_exp.checked,
+                            auto_white_balance: els.auto_wb.checked,
+                        },
+                    }),
+                );
+            };
+
+            document.getElementById("apply_offset").onclick = () => {
+                ws.send(
+                    JSON.stringify({
+                        type: "global",
+                        global: {
+                            tag_size_m: parseFloat(els.tag_size.value),
+                            robot_offset: {
+                                tx: parseFloat(els.off_x.value),
+                                ty: parseFloat(els.off_y.value),
+                                tz: parseFloat(els.off_z.value),
+                                yaw: parseFloat(els.off_yaw.value),
+                            },
+                        },
+                    }),
+                );
+            };
+
+            document.getElementById("save_board").onclick = () => {
+                ws.send(
+                    JSON.stringify({
+                        type: "calib_config",
+                        config: {
+                            board_width_sq: parseInt(els.board_w.value),
+                            board_height_sq: parseInt(els.board_h.value),
+                            sq_len: parseFloat(els.sq_len.value),
+                            marker_len: parseFloat(els.marker_len.value),
+                        },
+                    }),
+                );
+            };
+
+            document.getElementById("apply_nt").onclick = () => {
+                ws.send(
+                    JSON.stringify({
+                        type: "nt_server",
+                        address: els.nt_server.value.trim(),
+                    }),
+                );
+            };
+
+            document.getElementById("apply_network").onclick = () => {
+                ws.send(
+                    JSON.stringify({
+                        type: "global",
+                        global: {
+                            ip_suffix: parseInt(els.ip_suffix.value.trim()),
+                            mdns_name: els.mdns_name.value.trim(),
+                            camera_name: els.camera_name.value.trim(),
+                        },
+                    }),
+                );
+            };
+
+            els.team.onchange = () => {
+                ws.send(
+                    JSON.stringify({
+                        type: "global",
+                        global: { team_number: parseInt(els.team.value) },
+                    }),
+                );
+            };
+
+            els.driver_mode.onchange = () => {
+                ws.send(
+                    JSON.stringify({
+                        type: "global",
+                        global: { driver_mode: els.driver_mode.checked },
+                    }),
+                );
+                document.getElementById("video").src = "/stream";
+            };
+
+            document.getElementById("capture_frame").onclick = () =>
+                ws.send(JSON.stringify({ type: "calib_capture" }));
+            document.getElementById("clear_frames").onclick = () =>
+                ws.send(JSON.stringify({ type: "calib_clear" }));
+            document.getElementById("compute_calib").onclick = () =>
+                ws.send(JSON.stringify({ type: "calib_compute" }));
+
+            // --------------------------------------------------------------
+            //  Reset buttons (per-field + global)
+            // --------------------------------------------------------------
+            document.querySelectorAll(".reset-btn").forEach((btn) => {
+                btn.onclick = () => {
+                    const field = btn.dataset.field;
+                    const msg = field
+                        ? `Reset "${field}" to default?`
+                        : `Reset ALL settings to defaults?`;
+                    if (confirm(msg)) {
+                        ws.send(
+                            JSON.stringify({
+                                type: "reset",
+                                field: field || null,
+                            }),
+                        );
+                    }
+                };
+            });
+        </script>
+    </body>
 </html>
